@@ -1,3 +1,11 @@
+###################################################
+#   Author: Liu Aishan                            #
+#   Date: 2018.3.26                               #
+#   Create adversarial examples under             #
+#   different image transformation distributions  #
+###################################################
+
+
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.slim.nets as nets
@@ -17,6 +25,7 @@ log_dir = 'inception_v3_log'
 if not os.path.exists(log_dir):
 	os.makedirs(log_dir)
 
+# inception_v3 model
 def inception(image, reuse=False):
 	preprocessed = tf.multiply(tf.subtract(tf.expand_dims(image, 0), 0.5), 2.0)
 	arg_scope = nets.inception.inception_v3_arg_scope(weight_decay=0.0)
@@ -29,7 +38,7 @@ def inception(image, reuse=False):
 logits, probs = inception(image)
 
 data_dir = '../data'
-img_path = os.path.join(data_dir, 'cat.jpg')
+img_path = os.path.join(data_dir, 'girl.jpeg')
 
 restore_vars =[ var for var in tf.global_variables() if var.name.startswith('InceptionV3/')]
 saver = tf.train.Saver(restore_vars)
@@ -39,6 +48,7 @@ imagenet_json = os.path.join(data_dir,"imagenet.json")
 with open(imagenet_json) as f:
 	imagenet_labels = json.load(f)
 
+# classify a image into its class and show result
 def classify(img, correct_class=None, target_class=None):
 	fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 8))
 	fig.sca(ax1)
@@ -61,6 +71,8 @@ def classify(img, correct_class=None, target_class=None):
 	plt.show()
 
 
+# image preprocessing
+# PIL seems have sth wrong with TF when add tf.image.adjust_brightness()
 img_class = 281
 img = PIL.Image.open(img_path)
 img.width = img.size[0]
@@ -73,72 +85,70 @@ img = img.resize((new_w, new_h)).crop((0, 0, 299, 299))
 img = (np.asarray(img) / 255.0).astype(np.float32)
 
 #classify(img, correct_class=img_class)
-#writer = tf.train.SummaryWriter(log_dir, sess.graph)
-#writer.close()
-
 
 
 x = tf.placeholder(tf.float32, (299, 299, 3))
 
-x_hat = image # our trainable adversarial input
+# trainable image to get adversarial example
+x_hat = image
 assign_op = tf.assign(x_hat, x)
 
 learning_rate = tf.placeholder(tf.float32, ())
 y_hat = tf.placeholder(tf.int32, ())
 
 labels = tf.one_hot(y_hat, 1000)
+
+# loss function: get close to target class
 loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=[labels])
 optim_step = tf.train.GradientDescentOptimizer(
     learning_rate).minimize(loss, var_list=[x_hat])
 
 epsilon = tf.placeholder(tf.float32, ())
 
+# clip need to be done to make sure noise 'imperceptible' to human eyes
 below = x - epsilon
 above = x + epsilon
 projected = tf.clip_by_value(tf.clip_by_value(x_hat, below, above), 0, 1)
 with tf.control_dependencies([projected]):
     project_step = tf.assign(x_hat, projected)
 
-'''
-demo_epsilon = 2.0/255.0 # a really small perturbation
-demo_lr = 1e-1
-demo_steps = 20
-demo_target = 924 # "guacamole"
 
-# initialization step
-sess.run(assign_op, feed_dict={x: img})
+# get a adversarial example under different image transformation distributions
+# 1.rotation
+# 2.brightness (seems doesn't work well with the output image?)
 
-# projected gradient descent
-for i in range(demo_steps):
-    # gradient descent step
-    _, loss_value = sess.run(
-        [optim_step, loss],
-        feed_dict={learning_rate: demo_lr, y_hat: demo_target})
-    # project step
-    sess.run(project_step, feed_dict={x: img, epsilon: demo_epsilon})
-    if (i+1) % 10 == 0:
-        print('step %d, loss=%g' % (i+1, loss_value))
-    
-
-adv = x_hat.eval() # retrieve the adversarial example
-#fig, ax = plt.subplots(figsize=(299, 299))
-#ax.imshow(adv)
-#plt.axis("off")
-#plt.show()
-#classify(adv, correct_class=img_class, target_class=demo_target)
-'''
-num_samples = 4
+num_samples = 4 # samples number needed to be increased when GPU is available
 average_loss = 0
+
+# 1.rotation
 for i in range(num_samples):
 	rotated = tf.contrib.image.rotate(image, tf.random_uniform((), minval=-np.pi/4, maxval=np.pi/4))
 	rotated_logits, _ = inception(rotated, reuse=True)
 	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=rotated_logits, labels=labels) / num_samples
 
+# 2.brightness
+# result looks weird??
+'''
+for i in range(num_samples):
+	brightness = tf.image.random_brightness(image, max_delta = 1)
+	brightness_logits, _ = inception(brightness, reuse = True)
+	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=brightness_logits, laebls = labels) / num_sampls
+'''
+
+# TODO 
+# 3.gaussian filter, 
+# 4.angles when drive by
+# 5.distance
+
+
+# optimizer
 optim_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(average_loss, var_list=[x_hat])
 
+
+# training process
 demo_epsilon2 = 8.0/255.0
 demo_lr2 = 2e-1
-demo_steps2 = 20
+demo_steps2 = 20 # at least 50 steps should be processed in order to get an adversarial example
 demo_target2 = 924
 
 sess.run(assign_op, feed_dict={x:img})
@@ -156,35 +166,16 @@ adv_robust = x_hat.eval()
 rotated_image = tf.contrib.image.rotate(image, angle)
 rotated_example = rotated_image.eval(feed_dict={image: adv_robust, angle: ex_angle})
 classify(rotated_example, correct_class=img_class, target_class=demo_target2)
+
+
+# brightness change seems doesn't work well when seeing the output image
+# the final image looks a little bit weird
 '''
-
-demo_epsilon = 8.0/255.0 # still a pretty small perturbation
-demo_lr = 2e-1
-demo_steps = 100
-demo_target = 924 # "guacamole"
-
-# initialization step
-sess.run(assign_op, feed_dict={x: img})
-
-# projected gradient descent
-for i in range(demo_steps):
-    # gradient descent step
-    _, loss_value = sess.run(
-        [optim_step, average_loss],
-        feed_dict={learning_rate: demo_lr, y_hat: demo_target})
-    # project step
-    sess.run(project_step, feed_dict={x: img, epsilon: demo_epsilon})
-    if (i+1) % 50 == 0:
-        print('step %d, loss=%g' % (i+1, loss_value))
-    
-
-adv_robust = x_hat.eval() # retrieve the adversarial example
-
-ex_angle = np.pi/8
-
-angle = tf.placeholder(tf.float32, ())
-rotated_image = tf.contrib.image.rotate(image, angle)
-
-rotated_example = rotated_image.eval(feed_dict={image: adv_robust, angle: ex_angle})
-classify(rotated_example, correct_class=img_class, target_class=demo_target)
+brightness_image = tf.image.adjust_brightness(image, 0.5)
+brightness_image = tf.squeeze(brightness_image)
+brightness_example = brightness_image.eval(feed_dict={image: img})
+#classify(brightness_example, correct_class=img_class, target_class=924)
+fig, ax = plt.subplots(1,figsize=(299,299))
+ax.imshow(brightness_example)
+plt.show()
 '''

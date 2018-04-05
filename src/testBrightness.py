@@ -1,11 +1,3 @@
-###################################################
-#   Author: Liu Aishan                            #
-#   Date: 2018.3.26                               #
-#   Create adversarial examples under             #
-#   different image transformation distributions  #
-###################################################
-
-
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.slim.nets as nets
@@ -15,7 +7,6 @@ import os
 import tarfile
 import matplotlib.pyplot as plt
 import json
-
 
 sess = tf.InteractiveSession()
 
@@ -70,21 +61,17 @@ def classify(img, correct_class=None, target_class=None):
 	fig.subplots_adjust(bottom=0.2)
 	plt.show()
 
-
+data_dir = '../data'
+img_path = os.path.join(data_dir, 'girl.jpeg')
 # image preprocessing
-# PIL seems have sth wrong with TF when add tf.image.adjust_brightness()
 img_class = 281
 img = PIL.Image.open(img_path)
-# img.width = img.size[0]
-# img.height = img.size[1]
 big_dim = max(img.width, img.height)
 wide = img.width > img.height
 new_w = 299 if not wide else int(img.width * 299 /  img.height)
 new_h = 299 if wide else int(img.height * 299 / img.width)
 img = img.resize((new_w, new_h)).crop((0, 0, 299, 299))
 img = (np.asarray(img) / 255.0).astype(np.float32)
-
-# classify(img, correct_class=img_class)
 
 
 x = tf.placeholder(tf.float32, (299, 299, 3))
@@ -98,10 +85,20 @@ y_hat = tf.placeholder(tf.int32, ())
 
 labels = tf.one_hot(y_hat, 1000)
 
-# loss function: get close to target class
-# loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=[labels])
-# optim_step = tf.train.GradientDescentOptimizer(
-#     learning_rate).minimize(loss, var_list=[x_hat])
+# get a adversarial example under different image transformation distributions
+
+num_samples = 4 # samples number needed to be increased when GPU is available
+average_loss = 0
+
+# brightness
+for i in range(num_samples):
+	brightness = tf.image.random_brightness(image, max_delta = 1)
+	brightness = tf.clip_by_value(brightness, 0, 1)
+	brightness_logits, _ = inception(brightness, reuse = True)
+	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=brightness_logits, labels = labels) / num_samples
+
+# optimizer
+optim_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(average_loss, var_list=[x_hat])
 
 epsilon = tf.placeholder(tf.float32, ())
 
@@ -112,43 +109,10 @@ projected = tf.clip_by_value(tf.clip_by_value(x_hat, below, above), 0, 1)
 with tf.control_dependencies([projected]):
     project_step = tf.assign(x_hat, projected)
 
-
-# get a adversarial example under different image transformation distributions
-# 1.rotation
-# 2.brightness (seems doesn't work well with the output image?)
-
-num_samples = 4 # samples number needed to be increased when GPU is available
-average_loss = 0
-
-# 1.rotation
-for i in range(num_samples):
-	rotated = tf.contrib.image.rotate(image, tf.random_uniform((), minval=-np.pi/4, maxval=np.pi/4))
-	rotated_logits, _ = inception(rotated, reuse=True)
-	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=rotated_logits, labels=labels) / num_samples
-
-# 2.brightness
-# result looks weird??
-'''
-for i in range(num_samples):
-	brightness = tf.image.random_brightness(image, max_delta = 1)
-	brightness_logits, _ = inception(brightness, reuse = True)
-	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=brightness_logits, laebls = labels) / num_sampls
-'''
-
-# TODO 
-# 3.gaussian filter, 
-# 4.angles when drive by
-# 5.distance
-
-
-# optimizer
-optim_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(average_loss, var_list=[x_hat])
-
-
 # training process
 demo_epsilon2 = 8.0/255.0
 demo_lr2 = 2e-1
-demo_steps2 = 20 # at least 50 steps should be processed in order to get an adversarial example
+demo_steps2 = 20 # at least 20 steps should be processed in order to get an adversarial example
 demo_target2 = 924
 
 sess.run(assign_op, feed_dict={x:img})
@@ -160,22 +124,16 @@ for i in range(demo_steps2):
 	if (i+1) % 10 == 0 :
 		print(" step %d, loss %g" %(i+1, loss_value))
 
-angle = tf.placeholder(tf.float32, ())
-ex_angle = np.pi/8
 adv_robust = x_hat.eval()
-rotated_image = tf.contrib.image.rotate(image, angle)
-rotated_example = rotated_image.eval(feed_dict={image: adv_robust, angle: ex_angle})
-classify(rotated_example, correct_class=img_class, target_class=demo_target2)
 
-
-# brightness change seems doesn't work well when seeing the output image
-# the final image looks a little bit weird
-'''
 brightness_image = tf.image.adjust_brightness(image, 0.5)
+brightness_image = tf.clip_by_value(brightness_image, 0, 1)
 brightness_image = tf.squeeze(brightness_image)
-brightness_example = brightness_image.eval(feed_dict={image: img})
-#classify(brightness_example, correct_class=img_class, target_class=924)
-fig, ax = plt.subplots(1,figsize=(299,299))
-ax.imshow(brightness_example)
-plt.show()
-'''
+brightness_example = brightness_image.eval(feed_dict={image: adv_robust})
+classify(brightness_example, correct_class=img_class, target_class=924)
+
+brightness_image2 = tf.image.adjust_brightness(image, -0.5)
+brightness_image2 = tf.clip_by_value(brightness_image2, 0, 1)
+brightness_image2 = tf.squeeze(brightness_image2)
+brightness_example2 = brightness_image2.eval(feed_dict={image: adv_robust})
+classify(brightness_example2, correct_class=img_class, target_class=924)

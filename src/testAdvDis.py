@@ -15,6 +15,7 @@ import os
 import tarfile
 import matplotlib.pyplot as plt
 import json
+import random
 
 
 sess = tf.InteractiveSession()
@@ -38,7 +39,7 @@ def inception(image, reuse=False):
 logits, probs = inception(image)
 
 data_dir = '../data'
-img_path = os.path.join(data_dir, 'girl.jpeg')
+img_path = os.path.join(data_dir, 'cat.jpg')
 
 restore_vars =[ var for var in tf.global_variables() if var.name.startswith('InceptionV3/')]
 saver = tf.train.Saver(restore_vars)
@@ -77,8 +78,8 @@ img_class = 281
 img = PIL.Image.open(img_path)
 
 # liuaishan 2018.4.7 for python2.7, remove later
-img.width = img.size[0]
-img.height = img.size[1]
+#img.width = img.size[0]
+#img.height = img.size[1]
 
 big_dim = max(img.width, img.height)
 wide = img.width > img.height
@@ -121,7 +122,7 @@ with tf.control_dependencies([projected]):
 # 2.brightness 
 
 
-num_samples = 4 # samples number needed to be increased when GPU is available
+num_samples = 16 # samples number needed to be increased when GPU is available
 average_loss = 0
 
 for i in range(num_samples):
@@ -147,7 +148,7 @@ optim_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(average_l
 # training process
 demo_epsilon2 = 8.0/255.0
 demo_lr2 = 2e-1
-demo_steps2 = 10 # at least 50 steps should be processed in order to get an adversarial example
+demo_steps2 = 100 # at least 50 steps should be processed in order to get an adversarial example
 demo_target2 = 924
 
 sess.run(assign_op, feed_dict={x:img})
@@ -164,8 +165,8 @@ for i in range(demo_steps2):
 test_bright = random.uniform(-0.25, 0.25)
 test_angle = np.pi/8
 adv_robust = x_hat.eval()
-rotated_image = tf.contrib.image.rotate(image, angle)
-rotated_image = tf.image.adjust_brightness(rotated_image, test_brightness)
+rotated_image = tf.contrib.image.rotate(image, test_angle)
+rotated_image = tf.image.adjust_brightness(rotated_image, test_bright)
 rotated_image = tf.clip_by_value(rotated_image, 0, 1)
 rotated_example = rotated_image.eval(feed_dict={image: adv_robust})
 classify(rotated_example, correct_class=img_class, target_class=demo_target2)

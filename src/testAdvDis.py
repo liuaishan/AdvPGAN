@@ -75,8 +75,11 @@ def classify(img, correct_class=None, target_class=None):
 # PIL seems have sth wrong with TF when add tf.image.adjust_brightness()
 img_class = 281
 img = PIL.Image.open(img_path)
-# img.width = img.size[0]
-# img.height = img.size[1]
+
+# liuaishan 2018.4.7 for python2.7, remove later
+img.width = img.size[0]
+img.height = img.size[1]
+
 big_dim = max(img.width, img.height)
 wide = img.width > img.height
 new_w = 299 if not wide else int(img.width * 299 /  img.height)
@@ -115,25 +118,21 @@ with tf.control_dependencies([projected]):
 
 # get a adversarial example under different image transformation distributions
 # 1.rotation
-# 2.brightness (seems doesn't work well with the output image?)
+# 2.brightness 
+
 
 num_samples = 4 # samples number needed to be increased when GPU is available
 average_loss = 0
 
-# 1.rotation
 for i in range(num_samples):
+	# 1.rotation
 	rotated = tf.contrib.image.rotate(image, tf.random_uniform((), minval=-np.pi/4, maxval=np.pi/4))
-	rotated_logits, _ = inception(rotated, reuse=True)
+	# 2.brightness
+	brightness = tf.image.random_brightness(rotated, max_delta=0.25)
+	brightness = tf.clip_by_value(brightness, 0, 1)
+	rotated_logits, _ = inception(brightness, reuse=True)
 	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=rotated_logits, labels=labels) / num_samples
 
-# 2.brightness
-# result looks weird??
-'''
-for i in range(num_samples):
-	brightness = tf.image.random_brightness(image, max_delta = 1)
-	brightness_logits, _ = inception(brightness, reuse = True)
-	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=brightness_logits, laebls = labels) / num_sampls
-'''
 
 # TODO 
 # 3.gaussian filter, 
@@ -148,7 +147,7 @@ optim_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(average_l
 # training process
 demo_epsilon2 = 8.0/255.0
 demo_lr2 = 2e-1
-demo_steps2 = 20 # at least 50 steps should be processed in order to get an adversarial example
+demo_steps2 = 10 # at least 50 steps should be processed in order to get an adversarial example
 demo_target2 = 924
 
 sess.run(assign_op, feed_dict={x:img})
@@ -160,19 +159,24 @@ for i in range(demo_steps2):
 	if (i+1) % 10 == 0 :
 		print(" step %d, loss %g" %(i+1, loss_value))
 
-angle = tf.placeholder(tf.float32, ())
-ex_angle = np.pi/8
+# here goes a simple test
+#test_angle = tf.placeholder(tf.float32, ())
+test_bright = random.uniform(-0.25, 0.25)
+test_angle = np.pi/8
 adv_robust = x_hat.eval()
 rotated_image = tf.contrib.image.rotate(image, angle)
-rotated_example = rotated_image.eval(feed_dict={image: adv_robust, angle: ex_angle})
+rotated_image = tf.image.adjust_brightness(rotated_image, test_brightness)
+rotated_image = tf.clip_by_value(rotated_image, 0, 1)
+rotated_example = rotated_image.eval(feed_dict={image: adv_robust})
 classify(rotated_example, correct_class=img_class, target_class=demo_target2)
 
 
+'''
 # brightness change seems doesn't work well when seeing the output image
 # the final image looks a little bit weird
-'''
-brightness_image = tf.image.adjust_brightness(image, 0.5)
-brightness_image = tf.squeeze(brightness_image)
+
+brightness_image = tf.image.random_brightness(image,max_delta=0.5)
+brightness_image = tf.clip_by_value(brightness_image, 0, 1)
 brightness_example = brightness_image.eval(feed_dict={image: img})
 #classify(brightness_example, correct_class=img_class, target_class=924)
 fig, ax = plt.subplots(1,figsize=(299,299))

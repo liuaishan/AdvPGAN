@@ -128,17 +128,18 @@ average_loss = 0
 for i in range(num_samples):
 	# 1.rotation
 	rotated = tf.contrib.image.rotate(image, tf.random_uniform((), minval=-np.pi/4, maxval=np.pi/4))
+
 	# 2.brightness
-	brightness = tf.image.random_brightness(rotated, max_delta=0.25)
+	brightness = tf.image.random_brightness(rotated, max_delta=0.35)
 	brightness = tf.clip_by_value(brightness, 0, 1)
-	rotated_logits, _ = inception(brightness, reuse=True)
+
+	# 3. gaussian noise
+	noise = tf.add(brightness, tf.clip_by_value(tf.random_normal(shape=image.get_shape(), mean=0, stddev=1), 0, 0.25))
+	noise = tf.clip_by_value(noise, 0, 1)
+
+	rotated_logits, _ = inception(noise, reuse=True)
 	average_loss += tf.nn.softmax_cross_entropy_with_logits(logits=rotated_logits, labels=labels) / num_samples
 
-
-# TODO 
-# 3.gaussian filter, 
-# 4.angles when drive by
-# 5.distance
 
 
 # optimizer
@@ -176,11 +177,13 @@ classify(rotated_example, correct_class=img_class, target_class=demo_target2)
 # brightness change seems doesn't work well when seeing the output image
 # the final image looks a little bit weird
 
-brightness_image = tf.image.random_brightness(image,max_delta=0.5)
+normal1 = tf.random_normal(image.shape)
+brightness_image = image + 0.5 * normal1
+print(0.5 * normal1)
 brightness_image = tf.clip_by_value(brightness_image, 0, 1)
 brightness_example = brightness_image.eval(feed_dict={image: img})
 #classify(brightness_example, correct_class=img_class, target_class=924)
 fig, ax = plt.subplots(1,figsize=(299,299))
-ax.imshow(brightness_example)
-plt.show()
+#ax.imshow(brightness_example)
+#plt.show()
 '''

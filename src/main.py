@@ -21,6 +21,7 @@ flags.DEFINE_float("learning_rate", 0.0001, "learning rate")
 flags.DEFINE_string("data_dir", "../data", "data directory")
 flags.DEFINE_string("checkpoint_dir", "../checkpoint", "directory to save model")
 flags.DEFINE_string("phase", "train", "current phase of model, e.g to train or test")
+flags.DEFINE_string("output_dir", "../output", "directory to save serialized image")
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
@@ -33,7 +34,8 @@ def main(_):
                         alpha=FLAGS.alpha, beta=FLAGS.beta, gamma=FLAGS.gamma,
                         learning_rate=FLAGS.learning_rate, epoch=FLAGS.epoch,
                         traindata_size=FLAGS.traindata_size,
-                        data_dir=FLAGS.data_dir, checkpoint_dir=FLAGS.checkpoint_dir)
+                        data_dir=FLAGS.data_dir, checkpoint_dir=FLAGS.checkpoint_dir,
+                        output_dir=FLAGS.output_dir)
 
         if FLAGS.phase == 'train':
             model.train_op()

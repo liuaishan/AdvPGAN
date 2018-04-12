@@ -17,6 +17,7 @@ from src.ops import batch_norm
 from src.ops import linear
 from src.ops import conv2d
 from src.utils import load_data
+from src.utils import save_obj
 
 import os
 import time
@@ -35,7 +36,7 @@ class AdvPGAN(object):
     def __init__(self, sess, batch_size=16, image_size=256, patch_size=28,
                  channel=3, alpha=1, beta=1, gamma=1, learning_rate=0.0001,
                  epoch=10000, traindata_size=10000,
-                 data_dir=None,checkpoint_dir=None):
+                 data_dir=None,checkpoint_dir=None,output_dir=None):
 
         # hyperparameter
         self.df_dim = 64
@@ -55,6 +56,7 @@ class AdvPGAN(object):
         self.epoch = epoch
         self.traindata_size = traindata_size
         self.checkpoint_dir = checkpoint_dir
+        self.output_dir = output_dir
 
         self.build_model()
 
@@ -225,7 +227,14 @@ class AdvPGAN(object):
                       % (epoch, id, batch_iteration,
                          time.time() - start_time, errD, errG))
 
-                if np.mod(counter, 500) == 2:
+                # serialize and save image objects
+                if np.mod(counter, 100) == 0:
+                    save_obj(self.fake_image.eval({self.real_image: batch_data_x,
+                                                   self.fake_patch: }),
+                             filename=self.output_dir+'/' + str(time.time() +'_image.pkl'))
+
+                # save model
+                if np.mod(counter, 500) == 0:
                     self.save(self.checkpoint_dir, counter)
 
     # save model

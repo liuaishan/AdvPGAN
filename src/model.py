@@ -27,7 +27,7 @@ import numpy as np
 
 # TODO
 # 1.refactor, remove similar functions like: conv2d, _conv_layer
-# 2.implementation: overlay_patch_on_image()
+# 2.overlay adversarial patch with different environment distributions
 # 3.loss function
 # 4.patch with different size
 
@@ -96,13 +96,18 @@ class AdvPGAN(object):
             probs = tf.nn.softmax(logits)
         return logits, probs
 
-    # todo
-    # overlay the adversarial patch on image
-    def overlay_patch_on_image(self, image, patch):
-        image_mask = _circle_mask(image_shape)
-        inverted_mask = (1 - image_mask)
-        return image * inverted_mask + patch * image_mask
+    # pad the adversarial patch on image
+    def pad_patch_on_image(self, image, patch):
+        self.patch_var = tf.Variable(tf.zeros(shape=patch.get_shape()))
+        self.image_var = tf.Variable(tf.zeros(shape=image.get_shape()))
 
+        self.patch_var.assign(patch)
+        self.image_var.assign(image)
+        width = self.patch_var.get_shape()[1]
+
+        # right now, the patch is on the left top corner of image
+        self.image_var[:, 0: width, 0: width, :].assgin(self.patch_var)
+        return self.image_var
 
     # naive discriminator in GAN
     # using for adversarial training

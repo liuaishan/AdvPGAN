@@ -3,7 +3,7 @@ import os
 import scipy.misc
 import numpy as np
 
-from src.net import AdvPGAN
+from src.model import AdvPGAN
 import tensorflow as tf
 
 # hyperparameter
@@ -28,19 +28,19 @@ def main(_):
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
 
-    with tf.Session() as sess:
-        model = AdvPGAN(sess, batch_size=FLAGS.batch_size, image_size=FLAGS.image_size,
-                        patch_size=FLAGS.patch_size, channel=FLAGS.channel,
-                        alpha=FLAGS.alpha, beta=FLAGS.beta, gamma=FLAGS.gamma,
-                        learning_rate=FLAGS.learning_rate, epoch=FLAGS.epoch,
-                        traindata_size=FLAGS.traindata_size,
-                        data_dir=FLAGS.data_dir, checkpoint_dir=FLAGS.checkpoint_dir,
-                        output_dir=FLAGS.output_dir)
+    sess = tf.InteractiveSession
+    model = AdvPGAN(sess, batch_size=FLAGS.batch_size, image_size=FLAGS.image_size,
+                    patch_size=FLAGS.patch_size, channel=FLAGS.channel,
+                    alpha=FLAGS.alpha, beta=FLAGS.beta, gamma=FLAGS.gamma,
+                    learning_rate=FLAGS.learning_rate, epoch=FLAGS.epoch,
+                    traindata_size=FLAGS.traindata_size,
+                    data_dir=FLAGS.data_dir, checkpoint_dir=FLAGS.checkpoint_dir,
+                    output_dir=FLAGS.output_dir)
 
-        if FLAGS.phase == 'train':
-            model.train_op()
-        else:
-            model.train_op()
+    if FLAGS.phase == 'train':
+        model.train_op()
+    else:
+        model.train_op()
 
 if __name__ == '__main__':
     tf.app.run()

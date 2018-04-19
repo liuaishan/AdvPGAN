@@ -28,7 +28,7 @@ def main(_):
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
 
-    sess = tf.InteractiveSession
+    sess = tf.InteractiveSession()
     model = AdvPGAN(sess, batch_size=FLAGS.batch_size, image_size=FLAGS.image_size,
                     patch_size=FLAGS.patch_size, channel=FLAGS.channel,
                     alpha=FLAGS.alpha, beta=FLAGS.beta, gamma=FLAGS.gamma,
@@ -41,6 +41,7 @@ def main(_):
         model.train_op()
     else:
         model.train_op()
+    sess.close()
 
 if __name__ == '__main__':
     tf.app.run()

@@ -179,14 +179,13 @@ label_test: one hot code, shape (1, 43)
 y_test: label id, shape (1,)
 keep_prob_test: default = 1.0
 '''
-def Classifier(image_GS_test, label_test, y_test, keep_prob_test=1.0):
+def Classifier(sess, image_GS_test, label_test, y_test, keep_prob_test=1.0):
     saver = tf.train.Saver()
     # restore the model
-    with tf.Session() as sess:
-        saver.restore(sess=sess, save_path='model_2/model_best_test')
-        feed_dict_test = {features: image_GS_test,
-                        labels_true: label_test,
-                        labels_true_cls:y_test,
-                        keep_prob:keep_prob_test}
-        logits, probs = sess.run([fc_layer3, labels_pred], feed_dict=feed_dict_test)
+    saver.restore(sess=sess, save_path='model_2/model_best_test')
+    feed_dict_test = {features: image_GS_test,
+                     labels_true: label_test,
+                     labels_true_cls:y_test,
+                     keep_prob:keep_prob_test}
+    logits, probs = sess.run([fc_layer3, labels_pred], feed_dict=feed_dict_test)
     return logits, probs

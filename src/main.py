@@ -18,6 +18,8 @@ flags.DEFINE_float("alpha", 1.0, "parameter alpha")
 flags.DEFINE_float("beta", 1.0, "parameter beta")
 flags.DEFINE_float("gamma", 1.0, "parameter gamma")
 flags.DEFINE_float("learning_rate", 0.0001, "learning rate")
+flags.DEFINE_float("base_image_num", 4, "base number of image to augment")
+flags.DEFINE_float("base_patch_num", 4, "base number of patch to augment")
 flags.DEFINE_string("data_dir", "../data", "data directory")
 flags.DEFINE_string("checkpoint_dir", "../checkpoint", "directory to save model")
 flags.DEFINE_string("phase", "train", "current phase of model, e.g to train or test")
@@ -34,6 +36,8 @@ def main(_):
                     alpha=FLAGS.alpha, beta=FLAGS.beta, gamma=FLAGS.gamma,
                     learning_rate=FLAGS.learning_rate, epoch=FLAGS.epoch,
                     traindata_size=FLAGS.traindata_size,
+                    base_image_num=FLAGS.base_image_num,
+                    base_patch_num=FLAGS.base_patch_num,
                     data_dir=FLAGS.data_dir, checkpoint_dir=FLAGS.checkpoint_dir,
                     output_dir=FLAGS.output_dir)
 

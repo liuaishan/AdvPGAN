@@ -18,6 +18,7 @@ from src.ops import linear
 from src.ops import conv2d
 from src.utils import load_data
 from src.utils import save_obj
+from src.utils import shuffle_augment_and_load
 
 import os
 import time
@@ -37,6 +38,7 @@ class AdvPGAN(object):
     def __init__(self, sess, batch_size=16, image_size=256, patch_size=28,
                  channel=3, alpha=1, beta=1, gamma=1, learning_rate=0.0001,
                  epoch=10000, traindata_size=10000,
+                 base_image_num = 4, base_patch_num = 4,
                  data_dir=None,checkpoint_dir=None,output_dir=None):
 
         # hyperparameter
@@ -59,8 +61,14 @@ class AdvPGAN(object):
         self.checkpoint_dir = checkpoint_dir
         self.output_dir = output_dir
         self.rho = 1
+        self.image_dir = ''
+        self.patch_dir = ''
+        self.base_image_num = base_image_num
+        self.base_patch_num = base_patch_num
 
         self.build_model()
+
+
 
 
     # Generator of cGAN for adversarial patch
@@ -212,15 +220,22 @@ class AdvPGAN(object):
 
         for epoch in range(self.epoch):
 
-            image_set = glob(self.data_dir+r'*.jpg')
-            batch_iteration = min(len(image_set), self.traindata_size) / self.batch_size
+            #image_set = glob(self.data_dir+r'*.jpg')
+            #batch_iteration = min(len(image_set), self.traindata_size) / self.batch_size
+            batch_iteration = self.traindata_size / self.batch_size
 
             for id in range(batch_iteration):
-                batch_files = image_set[id*self.batch_size: (id+1)*self.batch_size]
-                batch_data_x, batch_data_y = [load_data(file, self.image_size) for file in batch_files]
+                #batch_files = image_set[id*self.batch_size: (id+1)*self.batch_size]
+                #batch_data_x, batch_data_y = [load_data(file, self.image_size) for file in batch_files]
+
+                batch_data_x, batch_data_y, batch_data_z  = \
+                    shuffle_augment_and_load(self.base_image_num, self.image_dir, self.base_patch_num,
+                                             self.patch_dir, self.batch_size )
 
                 batch_data_x = np.array(batch_data_x).astype(np.float32)
                 batch_data_y = np.array(batch_data_y).astype(np.float32)
+                batch_data_z = np.array(batch_data_z).astype(np.float32)
+
 
                 self.sess.run([d_opt],
                              feed_dict={self.real_image: batch_data_x})
@@ -228,12 +243,12 @@ class AdvPGAN(object):
                 self.sess.run([g_opt],
                               feed_dict={self.real_image: batch_data_x,
                                          self.y: batch_data_y,
-                                         self.real_patch: })
+                                         self.real_patch: batch_data_z})
 
                 errD = self.d_loss.eval({self.real_image: batch_data_x})
                 errG = self.g_loss.eval({self.real_image: batch_data_x,
                                          self.y: batch_data_y,
-                                         self.real_patch: })
+                                         self.real_patch: batch_data_z})
 
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
@@ -243,7 +258,7 @@ class AdvPGAN(object):
                 # serialize and save image objects
                 if np.mod(counter, 100) == 0:
                     save_obj(self.fake_image.eval({self.real_image: batch_data_x,
-                                                   self.fake_patch: }),
+                                                   self.fake_patch: batch_data_z}),
                              filename=self.output_dir+'/' + str(time.time() +'_image.pkl'))
 
                 # save model

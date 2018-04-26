@@ -11,10 +11,17 @@ import random
 # param@num number of image/patch to load
 # param@data_dir directory of image/patch
 # returnVal@ return a pair of list of image/patch and corresponding labels i.e return image, label
-def load_image(num, data_dir):
-
-
-    return
+def load_image(num, data_dir, encode):
+    image = []
+    label = []
+    while(len(label) < num):
+        with open(data_dir, 'rb') as f:
+            # cifar-10 need use 'latin1'
+            data = pickle.load(f, encoding=encode)
+        # the names of the keys should be unified as 'data', 'labels'
+        image = image + data['data']
+        label = label + data['labels']
+    return image[0:num], label[0:num]
 
 # load and augment patch, image with different combinations
 def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_size):

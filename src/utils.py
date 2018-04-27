@@ -5,7 +5,89 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 import random
+from sklearn.preprocessing import OneHotEncoder
+import cv2
 
+# change list of labels to one hot encoder
+# e.g. [0,1,2] --> [[1,0,0],[0,1,0],[0,0,1]]
+def OHE_labels(Y_tr, N_classes):
+    OHC = OneHotEncoder()
+    Y_ohc = OHC.fit(np.arange(N_classes).reshape(-1, 1))
+    Y_labels = Y_ohc.transform(Y_tr.reshape(-1, 1)).toarray()
+    return Y_labels
+
+# apply histogram equalization to remove the effect of brightness, use openCV'2 cv2
+# scale images between -.5 and .5, by dividing by 255. and subtracting .5.
+# this function can be merged with preprocess_image(img, image_size)
+def pre_process_image(image):
+    image[:,:,0] = cv2.equalizeHist(image[:,:,0])
+    image[:,:,1] = cv2.equalizeHist(image[:,:,1])
+    image[:,:,2] = cv2.equalizeHist(image[:,:,2])
+    image = image/255.-.5
+    return image
+
+# do rotation, translation and shear in the image
+def transform_image(image,ang_range,shear_range,trans_range):
+    # Rotation
+    ang_rot = np.random.uniform(ang_range)-ang_range/2
+    rows,cols,ch = image.shape    
+    Rot_M = cv2.getRotationMatrix2D((cols/2,rows/2),ang_rot,1)
+    # Translation
+    tr_x = trans_range*np.random.uniform()-trans_range/2
+    tr_y = trans_range*np.random.uniform()-trans_range/2
+    Trans_M = np.float32([[1,0,tr_x],[0,1,tr_y]])
+    # Shear
+    pts1 = np.float32([[5,5],[20,5],[5,20]])
+    pt1 = 5+shear_range*np.random.uniform()-shear_range/2
+    pt2 = 20+shear_range*np.random.uniform()-shear_range/2
+    pts2 = np.float32([[pt1,5],[pt2,pt1],[5,pt2]])
+    shear_M = cv2.getAffineTransform(pts1,pts2)
+        
+    image = cv2.warpAffine(image,Rot_M,(cols,rows))
+    image = cv2.warpAffine(image,Trans_M,(cols,rows))
+    image = cv2.warpAffine(image,shear_M,(cols,rows))
+    
+    image = pre_process_image(image)
+    
+    return image
+
+# Returns indices of each label
+# Assumes that the labels are 0 to N-1
+def get_index_dict(y_train):
+    dict_indices = {}
+    ind_all = np.arange(len(y_train))
+    for i in range(len(np.unique(y_train))):
+        ind_i = ind_all[y_train == i]
+        dict_indices[i] = ind_i
+        #print(ind_i)
+    return dict_indices
+
+# generate extra data
+def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_range,randomize_Var): 
+    dict_indices = get_index_dict(y_train)
+    n_class = len(np.unique(y_train)) 
+    X_arr = []
+    Y_arr = []
+    n_train = len(X_train)
+    for i in range(n_train):
+        for i_n in range(n_each):
+            img_trf = transform_image(X_train[i],
+                                      ang_range,shear_range,trans_range)
+            X_arr.append(img_trf)
+            Y_arr.append(y_train[i])
+            
+    X_arr = np.array(X_arr,dtype = np.float32())
+    Y_arr = np.array(Y_arr,dtype = np.float32())
+    
+    if (randomize_Var == 1):
+        len_arr = np.arange(len(Y_arr))
+        np.random.shuffle(len_arr)
+        X_arr[len_arr] = X_arr
+        Y_arr[len_arr] = Y_arr
+        
+    labels_arr = OHE_labels(Y_arr,43)
+
+    return X_arr,Y_arr,labels_arr
 
 # todo
 # param@num number of image/patch to load

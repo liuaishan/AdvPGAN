@@ -51,20 +51,8 @@ def transform_image(image,ang_range,shear_range,trans_range):
     
     return image
 
-# Returns indices of each label
-# Assumes that the labels are 0 to N-1
-def get_index_dict(y_train):
-    dict_indices = {}
-    ind_all = np.arange(len(y_train))
-    for i in range(len(np.unique(y_train))):
-        ind_i = ind_all[y_train == i]
-        dict_indices[i] = ind_i
-        #print(ind_i)
-    return dict_indices
-
 # generate extra data
 def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_range,randomize_Var): 
-    dict_indices = get_index_dict(y_train)
     n_class = len(np.unique(y_train)) 
     X_arr = []
     Y_arr = []

@@ -81,7 +81,9 @@ def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_
 # param@num number of image/patch to load
 # param@data_dir directory of image/patch
 # returnVal@ return a pair of list of image/patch and corresponding labels i.e return image, label
-def load_image(num, data_dir, encode):
+# extra=True --> need to generate extra data, otherwise only preprocess
+# N_classes, n_each=, ang_range, shear_range, trans_range and randomize_Var are parameters needed to generate extra data
+def load_image(num, data_dir, encode, extra=False, N_classes, n_each=5, ang_range=10, shear_range=2, trans_range=2, randomize_Var=1):
     image = []
     label = []
     while(len(label) < num):
@@ -91,7 +93,13 @@ def load_image(num, data_dir, encode):
         # the names of the keys should be unified as 'data', 'labels'
         image = image + data['data']
         label = label + data['labels']
-    return image[0:num], label[0:num]
+    if(extra):
+        image, label, ohc_label = gen_extra_data(image[0:num], label[0:num], N_classes, n_each, ang_range, shear_range, trans_range, randomize_Var)
+    else:
+        image_temp = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)
+        image = image_temp
+        label = label[0:num]
+    return image, label
 
 # load and augment patch, image with different combinations
 def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_size):

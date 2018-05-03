@@ -174,18 +174,17 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # classifier
 '''
 input:
+sess: tf.Session
 image_GS_test: shape (1, 128, 128, 3)
-label_test: one hot code, shape (1, 43)
-y_test: label id, shape (1,)
-keep_prob_test: default = 1.0
+return:
+logits: shape (1, 43)
+probs: shape (1, 43)
 '''
-def Classifier(sess, image_GS_test, label_test, y_test, keep_prob_test=1.0):
+def Classifier(sess, image_GS_test):
     saver = tf.train.Saver()
     # restore the model
     saver.restore(sess=sess, save_path='model_2/model_best_test')
     feed_dict_test = {features: image_GS_test,
-                     labels_true: label_test,
-                     labels_true_cls:y_test,
-                     keep_prob:keep_prob_test}
+                     keep_prob:1.0}
     logits, probs = sess.run([fc_layer3, labels_pred], feed_dict=feed_dict_test)
     return logits, probs

@@ -180,10 +180,10 @@ return:
 logits: shape (1, 43)
 probs: shape (1, 43)
 '''
-def Classifier(sess, image_GS_test):
+def GTSRB_Classifier(sess, path, image_GS_test):
     saver = tf.train.Saver()
     # restore the model
-    saver.restore(sess=sess, save_path='model_2/model_best_test')
+    saver.restore(sess=sess, save_path=path)
     feed_dict_test = {features: image_GS_test,
                      keep_prob:1.0}
     logits, probs = sess.run([fc_layer3, labels_pred], feed_dict=feed_dict_test)

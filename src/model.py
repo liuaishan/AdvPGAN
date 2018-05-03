@@ -19,6 +19,7 @@ from src.ops import conv2d
 from src.utils import load_data
 from src.utils import save_obj
 from src.utils import shuffle_augment_and_load
+from src.GTSRB_Classifier import GTSRB_Classifier
 
 import os
 import time
@@ -26,11 +27,11 @@ import glob
 import numpy as np
 
 
+
 # TODO
 # 1.refactor, remove similar functions like: conv2d, _conv_layer
 # 2.overlay adversarial patch with different environment distributions
-# 3.loss function
-# 4.patch with different size
+# 3.loss function(check again!!!)
 
 
 class AdvPGAN(object):
@@ -39,7 +40,7 @@ class AdvPGAN(object):
                  channel=3, alpha=1, beta=1, gamma=1, learning_rate=0.0001,
                  epoch=10000, traindata_size=10000,
                  base_image_num = 4, base_patch_num = 4,
-                 data_dir=None,checkpoint_dir=None,output_dir=None):
+                 data_dir=None,target_model_dir=None, checkpoint_dir=None,output_dir=None):
 
         # hyperparameter
         self.df_dim = 64
@@ -51,18 +52,21 @@ class AdvPGAN(object):
         self.g_vars = []
         self.sess = sess
         self.data_dir = data_dir
-        self.class_num = 1000
+        self.class_num = 43
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
         self.learning_rate = learning_rate
         self.epoch = epoch
         self.traindata_size = traindata_size
+        self.target_model_dir=target_model_dir
         self.checkpoint_dir = checkpoint_dir
         self.output_dir = output_dir
         self.rho = 1
-        self.image_dir = ''
-        self.patch_dir = ''
+        # liuaishan 2018.5.3 directory for training set of image and patch
+        self.image_dir = '..\\data'
+        self.patch_dir = '..\\data\\cifar-10-python\\cifar-10-batches-py'
+
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
 
@@ -77,33 +81,38 @@ class AdvPGAN(object):
     # output: adversarial patch image with size n*n
     # no gaussian noise needed
     def generator(self, image):
+        # do we need here???
         image = image / 255.0
-        conv1 = _conv_layer(image, 32, 9, 1, name="g_conv1")
-        conv2 = _conv_layer(conv1, 64, 3, 2, name="g_conv2")
-        conv3 = _conv_layer(conv2, 128, 3, 2, name="g_conv3")
-        resid1 = _residual_block(conv3, 3, name="g_resid1")
-        resid2 = _residual_block(resid1, 3, name="g_resid2")
-        resid3 = _residual_block(resid2, 3, name="g_resid3")
-        resid4 = _residual_block(resid3, 3, name="g_resid4")
-        resid5 = _residual_block(resid4, 3, name="g_resid5")
-        conv_t1 = _conv_tranpose_layer(resid5, 64, 3, 2, name="g_deconv1")
-        conv_t2 = _conv_tranpose_layer(conv_t1, 32, 3, 2, name="g_deconv2")
-        conv_t3 = _conv_layer(conv_t2, 3, 9, 1, relu=False, name="g_deconv3")
+        self.conv1 = _conv_layer(image, 32, 9, 1, name="adv_g_conv1")
+        conv2 = _conv_layer(self.conv1, 64, 3, 2, name="adv_g_conv2")
+        conv3 = _conv_layer(conv2, 128, 3, 2, name="adv_g_conv3")
+        resid1 = _residual_block(conv3, 3, name="adv_g_resid1")
+        resid2 = _residual_block(resid1, 3, name="adv_g_resid2")
+        resid3 = _residual_block(resid2, 3, name="adv_g_resid3")
+        resid4 = _residual_block(resid3, 3, name="adv_g_resid4")
+        resid5 = _residual_block(resid4, 3, name="adv_g_resid5")
+        conv_t1 = _conv_tranpose_layer(resid5, 64, 3, 2, name="adv_g_deconv1")
+        conv_t2 = _conv_tranpose_layer(conv_t1, 32, 3, 2, name="adv_g_deconv2")
+        conv_t3 = _conv_layer(conv_t2, 3, 9, 1, relu=False, name="adv_g_deconv3")
         preds = tf.nn.tanh(conv_t3)
         output = image + preds
+        # do we need here???
         return tf.nn.tanh(output) * 127.5 + 255./2
 
 
     # target model to attack
     def target_model_discriminator(self, image, reuse = False):
-        preprocessed = tf.multiply(tf.subtract(tf.expand_dims(image, 0), 0.5), 2.0)
-        arg_scope = nets.inception.inception_v3_arg_scope(weight_decay=0.0)
-        with slim.arg_scope(arg_scope):
-            logits, _ = nets.inception.inception_v3(preprocessed, 1001, is_training=False, reuse=reuse)
-            logits = logits[:, 1:]
-            probs = tf.nn.softmax(logits)
-        return logits, probs
+        # here, we call CNN model for GTSRB
+        return GTSRB_Classifier(self.sess, self.target_model_dir, image)
 
+        #liuas test!!!
+        '''
+        logits = [[0.0]*43]*16
+
+        prob = [[0.0]*43]*16
+
+        return logits, prob
+        '''
     # pad the adversarial patch on image
     def pad_patch_on_image(self, image, patch):
         self.patch_var = tf.Variable(tf.zeros(shape=patch.get_shape()))
@@ -114,7 +123,8 @@ class AdvPGAN(object):
         width = self.patch_var.get_shape()[1]
 
         # right now, the patch is on the left top corner of image
-        self.image_var[:, 0: width, 0: width, :].assgin(self.patch_var)
+        #self.image_var[:, 0: width, 0: width, :].assgin(self.patch_var)
+        tf.assign(self.image_var[:, 0: width, 0: width, :], self.patch_var)
         return self.image_var
 
     # naive discriminator in GAN
@@ -128,31 +138,20 @@ class AdvPGAN(object):
             else:
                 assert tf.get_variable_scope().reuse == False
 
-            h0 = lrelu(conv2d(image,  self.df_dim, name='d_h0_conv'))
+            h0 = lrelu(conv2d(image,  self.df_dim, name='adv_d_h0_conv'))
             # h0 is (128 x 128 x self.df_dim)
-            h1 = lrelu(batch_norm((conv2d(h0, self.df_dim * 2, name='d_h1_conv')), name="d_bn1"))
+            h1 = lrelu(batch_norm((conv2d(h0, self.df_dim * 2, name='adv_d_h1_conv')), name="adv_d_bn1"))
             # h1 is (64 x 64 x self.df_dim*2)
-            h2 = lrelu(batch_norm(conv2d(h1, self.df_dim * 4, name='d_h2_conv'), name="d_bn2"))
+            h2 = lrelu(batch_norm(conv2d(h1, self.df_dim * 4, name='adv_d_h2_conv'), name="adv_d_bn2"))
             # h2 is (32x 32 x self.df_dim*4)
-            h3 = lrelu(batch_norm(conv2d(h2, self.df_dim * 8, d_h=1, d_w=1, name='d_h3_conv'), name="d_bn3"))
+            h3 = lrelu(batch_norm(conv2d(h2, self.df_dim * 8, d_h=1, d_w=1, name='adv_d_h3_conv'), name="adv_d_bn3"))
             # h3 is (16 x 16 x self.df_dim*8)
-            h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
+            h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'adv_d_h3_lin')
 
             return tf.nn.sigmoid(h4), h4
 
     # build cGAN model
     def build_model(self):
-
-        # load target model
-        restore_vars = [var for var in tf.global_variables() if var.name.startswith('InceptionV3/')]
-        saver = tf.train.Saver(restore_vars)
-        saver.restore(self.sess, os.path.join(self.data_dir, 'inception_v3.ckpt'))
-
-        # get all trainable variables for G and D, respectively
-        t_vars = tf.trainable_variables()
-        self.d_vars = [var for var in t_vars if 'd_' in var.name]
-        self.g_vars = [var for var in t_vars if 'g_' in var.name]
-
         # input image
         self.real_image = tf.placeholder(tf.float32, [self.batch_size, self.image_size,
                                                       self.image_size, self.image_channel])
@@ -164,13 +163,13 @@ class AdvPGAN(object):
         # adversarial patch generated by G
         self.fake_patch = self.generator(self.real_patch)
         # overlay adversarial patch on image to generate adversarial example
-        self.fake_image = self.overlay_patch_on_image(image=self.real_image, patch=self.fake_patch)
+        self.fake_image = self.pad_patch_on_image(image=self.real_image, patch=self.fake_patch)
         # classify result from target model
         self.fake_logits_f, self.fake_prob_f = self.target_model_discriminator(self.fake_image)
         # fake image result from naive D
         self.fake_logits_d, self.fake_prob_d = self.naive_discriminator(self.fake_image)
         # real image result from naive D
-        self.real_logits_d, self.real_prob_d = self.naive_discriminator(self.real_image)
+        self.real_logits_d, self.real_prob_d = self.naive_discriminator(self.real_image, reuse=True)
 
 
         # The loss of AdvPGAN consists of: GAN loss, patch loss and adversarial example loss
@@ -180,21 +179,30 @@ class AdvPGAN(object):
                                          tf.nn.sigmoid_cross_entropy_with_logits(logits=self.fake_logits_d,
                                                                                  labels=tf.zeros_like(self.fake_logits_d)))
 
-        self.loss_g_adv = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.fake_logits_d,
-                                                                                 labels=tf.ones(self.fake_logits_d)))
+        self.loss_g_adv = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.fake_logits_d,
+                                                                                 labels=tf.ones_like(self.fake_logits_d)))
 
         # 2.patch loss
         # todo TV(), try L1 norm etc.
         self.patch_loss = tf.nn.l2_loss(self.real_patch - self.fake_patch)
 
         # 3.adversarial example loss
-        self.ae_loss = -tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.fake_logits_d, labels=tf.one_hot(self.y, self.class_num))) \
+        self.ae_loss = -tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.fake_logits_f, labels=self.y)) \
                                        + self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
 
         # overall loss for D and G
         self.g_loss = self.alpha * self.loss_g_adv + self.beta * self.patch_loss + self.gamma * self.ae_loss
         self.d_loss = self.loss_d_adv
 
+        # load target model
+        # restore_vars = [var for var in tf.global_variables() if var.name.startswith('adv_')]
+        # saver = tf.train.Saver(restore_vars)
+        # saver.restore(self.sess, os.path.join(self.data_dir, 'AdvpGAN.ckpt'))
+
+        # get all trainable variables for G and D, respectively
+        t_vars = tf.trainable_variables()
+        self.d_vars = [var for var in t_vars if 'adv_d_' in var.name]
+        self.g_vars = [var for var in t_vars if 'adv_g_' in var.name]
 
         # initialize a saver
         self.saver = tf.train.Saver()

@@ -26,6 +26,7 @@ def pre_process_image(image):
     image = image/255.-.5
     return image
 
+
 # do rotation, translation and shear in the image
 def transform_image(image,ang_range,shear_range,trans_range):
     # Rotation
@@ -51,6 +52,7 @@ def transform_image(image,ang_range,shear_range,trans_range):
     
     return image
 
+
 # generate extra data
 def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_range,randomize_Var): 
     n_class = len(np.unique(y_train)) 
@@ -72,18 +74,19 @@ def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_
         np.random.shuffle(len_arr)
         X_arr[len_arr] = X_arr
         Y_arr[len_arr] = Y_arr
-        
-    labels_arr = OHE_labels(Y_arr,43)
+
+    # liuaishan 2018.5.3 N_classes should be used instead of a constant
+    labels_arr = OHE_labels(Y_arr,N_classes)
 
     return X_arr,Y_arr,labels_arr
 
-# todo
+# ZhangAnlan 2018.5.3
 # param@num number of image/patch to load
 # param@data_dir directory of image/patch
 # returnVal@ return a pair of list of image/patch and corresponding labels i.e return image, label
 # extra=True --> need to generate extra data, otherwise only preprocess
 # N_classes, n_each=, ang_range, shear_range, trans_range and randomize_Var are parameters needed to generate extra data
-def load_image(num, data_dir, encode, extra=False, N_classes, n_each=5, ang_range=10, shear_range=2, trans_range=2, randomize_Var=1):
+def load_image( num, data_dir, N_classes, encode='latin1' , extra=False, n_each=5, ang_range=10, shear_range=2, trans_range=2, randomize_Var=1):
     image = []
     label = []
     while(len(label) < num):
@@ -107,9 +110,9 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
     if batch_size <= 0:
         return None
 
-    # load image/patch from
-    image_set, image_label_set = load_image(image_num, image_dir)
-    patch_set = load_image(patch_num, patch_dir)
+    # load image/patch from directory
+    image_set, image_label_set = load_image(image_num, image_dir, N_classes=43)
+    patch_set = load_image(patch_num, patch_dir, N_classes=10)
 
     result_img = []
     result_patch = []

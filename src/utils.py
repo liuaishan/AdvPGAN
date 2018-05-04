@@ -20,10 +20,14 @@ def OHE_labels(Y_tr, N_classes):
 # scale images between -.5 and .5, by dividing by 255. and subtracting .5.
 # this function can be merged with preprocess_image(img, image_size)
 def pre_process_image(image):
+    # todo Zhanganlan
+    # error occurs when cifar-10 is tested
+    '''
     image[:,:,0] = cv2.equalizeHist(image[:,:,0])
     image[:,:,1] = cv2.equalizeHist(image[:,:,1])
     image[:,:,2] = cv2.equalizeHist(image[:,:,2])
-    image = image/255.-.5
+    '''
+    image = image/255. - .5
     return image
 
 
@@ -86,22 +90,35 @@ def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_
 # returnVal@ return a pair of list of image/patch and corresponding labels i.e return image, label
 # extra=True --> need to generate extra data, otherwise only preprocess
 # N_classes, n_each=, ang_range, shear_range, trans_range and randomize_Var are parameters needed to generate extra data
-def load_image( num, data_dir, N_classes, encode='latin1' , extra=False, n_each=5, ang_range=10, shear_range=2, trans_range=2, randomize_Var=1):
+def load_image( num, file_path, N_classes, encode='latin1' , extra=False, n_each=5, ang_range=10, shear_range=2, trans_range=2, randomize_Var=1):
     image = []
     label = []
+    with open(file_path, 'rb') as f:
+        # cifar-10 need use 'latin1'
+        data = pickle.load(f, encoding=encode)
+
+    # the names of the keys should be unified as 'data', 'labels'
+    # todo Zhanganlan
+    # to be removed! liuas test!!!!!!!!
+    if str(file_path).endswith("train.p"):
+        temp_image = data['features']
+    else: # cifar-10 data set needs some pre-process
+        temp_image = data['data']
+        temp_image = temp_image.reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1).astype("float")
+    temp_label = data['labels']
+
     while(len(label) < num):
-        with open(data_dir, 'rb') as f:
-            # cifar-10 need use 'latin1'
-            data = pickle.load(f, encoding=encode)
-        # the names of the keys should be unified as 'data', 'labels'
-        image = image + data['data']
-        label = label + data['labels']
+        # pick up randomly
+        iter = random.randint(0, len(temp_label) - 1)
+        image.append(temp_image[iter])
+        label.append(temp_label[iter])
+
+    # further tests are needed for ZhangAnlan
     if(extra):
         image, label, ohc_label = gen_extra_data(image[0:num], label[0:num], N_classes, n_each, ang_range, shear_range, trans_range, randomize_Var)
     else:
-        image_temp = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)
-        image = image_temp
-        label = label[0:num]
+        image = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)
+
     return image, label
 
 # load and augment patch, image with different combinations
@@ -112,7 +129,7 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
 
     # load image/patch from directory
     image_set, image_label_set = load_image(image_num, image_dir, N_classes=43)
-    patch_set = load_image(patch_num, patch_dir, N_classes=10)
+    patch_set, _ = load_image(patch_num, patch_dir, N_classes=10)
 
     result_img = []
     result_patch = []
@@ -134,8 +151,8 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
 
     # not enough, random pick
     else:
-        len = batch_size - len(result_img)
-        for iter in range(len):
+        len_to_supp = batch_size - len(result_img)
+        for iter in range(len_to_supp):
             result_img.append(image_set[random.randint(0, image_num - 1)])
             result_img_label.append(image_label_set[random.randint(0, image_num - 1)])
             result_patch.append(patch_set[random.randint(0, patch_num - 1)])

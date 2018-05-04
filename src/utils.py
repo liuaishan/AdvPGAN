@@ -139,6 +139,7 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
     for i in range(image_num):
         for j in range(patch_num):
             result_img.append(image_set[i])
+            #label_tensor = tf.one_hot(image_label_set[i], 43)
             result_img_label.append(image_label_set[i])
             result_patch.append(patch_set[j])
 
@@ -153,8 +154,10 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
     else:
         len_to_supp = batch_size - len(result_img)
         for iter in range(len_to_supp):
-            result_img.append(image_set[random.randint(0, image_num - 1)])
-            result_img_label.append(image_label_set[random.randint(0, image_num - 1)])
+            ran_img = random.randint(0, image_num - 1)
+            result_img.append(image_set[ran_img])
+            #label_tensor = tf.one_hot(image_label_set[ran_img], 43)
+            result_img_label.append(image_label_set[ran_img])
             result_patch.append(patch_set[random.randint(0, patch_num - 1)])
         return result_img,result_img_label,result_patch
 

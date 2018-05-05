@@ -25,6 +25,7 @@ import os
 import time
 import glob
 import numpy as np
+from scipy import misc
 
 
 
@@ -116,19 +117,31 @@ class AdvPGAN(object):
 
     # pad the adversarial patch on image
     def pad_patch_on_image(self, image, patch):
-        self.patch_var = tf.Variable(tf.zeros(shape=patch.get_shape()))
-        self.image_var = tf.Variable(tf.zeros(shape=image.get_shape()))
+		# 用patch_mask来对image的相应位置进行覆盖
+		patch_mask = np.ones([patch.shape[0],patch.shape[0],3], dtype=np.float32)
+		patch_mask = tf.convert_to_tensor(patch_mask)	
+		patch_size = int(patch.shape[0])*1.5
+		patch = tf.image.resize_image_with_crop_or_pad(patch, int(patch_size), int(patch_size))
+		patch_mask = tf.image.resize_image_with_crop_or_pad(patch_mask, int(patch_size), int(patch_size))
 
-        width = self.patch_var.get_shape()[1]
-        self.image_var.assign(image)
-        tf.assign(self.image_var[:, 0: width, 0: width, :], self.patch_var)
+		# 同时对patch和patch_mask旋转随机角度
+		angle = np.random.uniform(low=-180.0, high=180.0)
+		def random_rotate_image_func(image, angle):
+			return misc.imrotate(image, angle, 'bicubic') 
+		patch_rotate = tf.py_func(random_rotate_image_func, [patch, angle], tf.uint8)
+		patch_mask = tf.py_func(random_rotate_image_func, [patch_mask, angle], tf.uint8)
+		patch_rotate = tf.image.convert_image_dtype(patch_rotate, tf.float32)
+		patch_mask = tf.image.convert_image_dtype(patch_mask, tf.float32)
 
-        self.patch_var.assign(patch)
-
-        # right now, the patch is on the left top corner of image
-        #self.image_var[:, 0: width, 0: width, :].assgin(self.patch_var)
-        tf.assign(self.image_var[:, 0: width, 0: width, :], self.patch_var)
-        return self.image_var
+		# 同时对patch和patch_mask平移到随机位置
+		location_x = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
+		location_y = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
+		patch_rotate = tf.image.pad_to_bounding_box(patch_rotate, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
+		patch_mask = tf.image.pad_to_bounding_box(patch_mask, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
+		
+		# 把patch覆盖到image上
+		image_with_patch = (1-patch_mask)*image + patch_rotate
+		return image_with_patch
 
     # naive discriminator in GAN
     # using for adversarial training

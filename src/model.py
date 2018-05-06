@@ -9,17 +9,17 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.slim.nets as nets
 
-from src.ops import _conv_layer
-from src.ops import _residual_block
-from src.ops import _conv_tranpose_layer
-from src.ops import lrelu
-from src.ops import batch_norm
-from src.ops import linear
-from src.ops import conv2d
-from src.utils import load_data
-from src.utils import save_obj
-from src.utils import shuffle_augment_and_load
-from src.GTSRB_Classifier import GTSRB_Classifier
+from ops import _conv_layer
+from ops import _residual_block
+from ops import _conv_tranpose_layer
+from ops import lrelu
+from ops import batch_norm
+from ops import linear
+from ops import conv2d
+from utils import load_data
+from utils import save_obj
+from utils import shuffle_augment_and_load
+from GTSRB_Classifier import GTSRB_Classifier
 
 import os
 import time
@@ -41,7 +41,7 @@ class AdvPGAN(object):
                  channel=3, alpha=1, beta=1, gamma=1, learning_rate=0.0001,
                  epoch=10000, traindata_size=10000,
                  base_image_num = 4, base_patch_num = 4,
-                 data_dir=None,target_model_dir=None, checkpoint_dir=None,output_dir=None):
+                 target_model_dir=None, checkpoint_dir=None,output_dir=None):
 
         # hyperparameter
         self.df_dim = 64
@@ -52,7 +52,6 @@ class AdvPGAN(object):
         self.d_vars = []
         self.g_vars = []
         self.sess = sess
-        self.data_dir = data_dir
         self.class_num = 43
         self.alpha = alpha
         self.beta = beta
@@ -65,8 +64,8 @@ class AdvPGAN(object):
         self.output_dir = output_dir
         self.rho = 1
         # liuaishan 2018.5.3 directory for training set of image and patch
-        self.image_dir = 'C:\\Users\\Administrator\\Desktop\\AdvPGAN\\AdvPGAN\\data\\train.p'
-        self.patch_dir = 'C:\\Users\\Administrator\\Desktop\\AdvPGAN\\AdvPGAN\\data\\cifar-10-python\\cifar-10-batches-py\\data_batch_1'
+        self.image_dir = 'C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\train.p'
+        self.patch_dir = 'C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\cifar-10-batches-py\\data_batch_1'
 
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
@@ -83,7 +82,7 @@ class AdvPGAN(object):
     # no gaussian noise needed
     def generator(self, image):
         # do we need here???
-        image = image / 255.0
+        #image = image / 255.0
         self.conv1 = _conv_layer(image, 32, 9, 1, name="adv_g_conv1")
         conv2 = _conv_layer(self.conv1, 64, 3, 2, name="adv_g_conv2")
         conv3 = _conv_layer(conv2, 128, 3, 2, name="adv_g_conv3")
@@ -98,7 +97,8 @@ class AdvPGAN(object):
         preds = tf.nn.tanh(conv_t3)
         output = image + preds
         # do we need here???
-        return tf.nn.tanh(output) * 127.5 + 255./2
+        #return tf.nn.tanh(output) * 127.5 + 255./2
+        return tf.nn.tanh(output)
 
 
     # target model to attack
@@ -117,6 +117,7 @@ class AdvPGAN(object):
 
     # pad the adversarial patch on image
     def pad_patch_on_image(self, image, patch):
+        '''
 		# 用patch_mask来对image的相应位置进行覆盖
 		patch_mask = np.ones([patch.shape[0],patch.shape[0],3], dtype=np.float32)
 		patch_mask = tf.convert_to_tensor(patch_mask)	
@@ -142,6 +143,16 @@ class AdvPGAN(object):
 		# 把patch覆盖到image上
 		image_with_patch = (1-patch_mask)*image + patch_rotate
 		return image_with_patch
+		'''
+        self.patch_var = tf.Variable(tf.zeros(shape=patch.get_shape()))
+        self.image_var = tf.Variable(tf.zeros(shape=image.get_shape()))
+        width = self.patch_var.get_shape()[1]
+        self.image_var.assign(image)
+        tf.assign(self.image_var[:, 0: width, 0: width, :], self.patch_var)
+        self.patch_var.assign(patch)
+
+        tf.assign(self.image_var[:, 0: width, 0: width, :], self.patch_var)
+        return self.image_var
 
     # naive discriminator in GAN
     # using for adversarial training

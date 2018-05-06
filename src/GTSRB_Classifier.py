@@ -2,6 +2,7 @@
 classifier for GTSRB dataset
 '''
 import tensorflow as tf
+from utils import load_image
 
 # parameters
 img_size = 128
@@ -14,13 +15,14 @@ labels_true = tf.placeholder(tf.float32,shape=[None,N_classes], name='y_true')
 labels_true_cls = tf.argmax(labels_true, dimension=1)
 keep_prob = tf.placeholder(tf.float32)
 
+
 # functions
 def get_weights(shape):
     return tf.Variable(tf.truncated_normal(shape, stddev=0.05))
 def get_biases(length):
     return tf.Variable(tf.constant(0.05, shape=[length]))
 
-def conv_layer(input, num_inp_channels, filter_size, num_filters, use_pooling):
+def conv_layer(input, num_inp_channels, filter_size, num_filters, use_pooling,name=""):
     shape = [filter_size, filter_size, num_inp_channels,num_filters]
     weights = get_weights(shape)
     biases = get_biases(num_filters)
@@ -85,106 +87,129 @@ fc_size1 = 1024
 ## FC_size
 fc_size2 = 1024
 
-layer_conv0, weights_conv0 =         conv_layer(input=features,
-                   num_inp_channels=num_channels,
-                   filter_size=filter_size0,
-                   num_filters=num_filters0,
-                   use_pooling=False)
+def GTSRB_Model(
+        features,
+        keep_prob,
+        reuse = False
+):
 
-layer_conv1, weights_conv1 =         conv_layer(input=layer_conv0,
-                   num_inp_channels=num_filters0,
-                   filter_size=filter_size1,
-                   num_filters=num_filters1,
-                   use_pooling=False)
-layer_conv2, weights_conv2 =         conv_layer(input=layer_conv1,
-                   num_inp_channels=num_filters1,
-                   filter_size=filter_size2,
-                   num_filters=num_filters2,
-                   use_pooling=True)
-layer_conv2_drop = dropout_layer(layer_conv2, keep_prob)
+    with tf.variable_scope('GTSRB') as scope:
 
-layer_conv3, weights_conv3 =         conv_layer(input=layer_conv2_drop,
-                   num_inp_channels=num_filters2,
-                   filter_size=filter_size3,
-                   num_filters=num_filters3,
-                   use_pooling=False)
-layer_conv4, weights_conv4=         conv_layer(input=layer_conv3,
-                   num_inp_channels=num_filters3,
-                   filter_size=filter_size4,
-                   num_filters=num_filters4,
-                   use_pooling=True)
-layer_conv4_drop = dropout_layer(layer_conv4, keep_prob)
+        # image is 256 x 256 x (input_c_dim + output_c_dim)
+        if reuse:
+            tf.get_variable_scope().reuse_variables()
+        else:
+            assert tf.get_variable_scope().reuse == False
 
-layer_conv5, weights_conv5 =         conv_layer(input=layer_conv4_drop,
-                   num_inp_channels=num_filters4,
-                   filter_size=filter_size5,
-                   num_filters=num_filters5,
-                   use_pooling=False)
-layer_conv6, weights_conv6 =         conv_layer(input=layer_conv5,
-                   num_inp_channels=num_filters5,
-                   filter_size=filter_size6,
-                   num_filters=num_filters6,
-                   use_pooling=True)
-layer_conv6_drop = dropout_layer(layer_conv6, keep_prob)
+        layer_conv0, weights_conv0 =         conv_layer(input=features,
+                           num_inp_channels=num_channels,
+                           filter_size=filter_size0,
+                           num_filters=num_filters0,
+                           use_pooling=False)
+
+        layer_conv1, weights_conv1 =         conv_layer(input=layer_conv0,
+                           num_inp_channels=num_filters0,
+                           filter_size=filter_size1,
+                           num_filters=num_filters1,
+                           use_pooling=False)
+        layer_conv2, weights_conv2 =         conv_layer(input=layer_conv1,
+                           num_inp_channels=num_filters1,
+                           filter_size=filter_size2,
+                           num_filters=num_filters2,
+                           use_pooling=True)
+        layer_conv2_drop = dropout_layer(layer_conv2, keep_prob)
+
+        layer_conv3, weights_conv3 =         conv_layer(input=layer_conv2_drop,
+                           num_inp_channels=num_filters2,
+                           filter_size=filter_size3,
+                           num_filters=num_filters3,
+                           use_pooling=False)
+        layer_conv4, weights_conv4=         conv_layer(input=layer_conv3,
+                           num_inp_channels=num_filters3,
+                           filter_size=filter_size4,
+                           num_filters=num_filters4,
+                           use_pooling=True)
+        layer_conv4_drop = dropout_layer(layer_conv4, keep_prob)
+
+        layer_conv5, weights_conv5 =         conv_layer(input=layer_conv4_drop,
+                           num_inp_channels=num_filters4,
+                           filter_size=filter_size5,
+                           num_filters=num_filters5,
+                           use_pooling=False)
+        layer_conv6, weights_conv6 =         conv_layer(input=layer_conv5,
+                           num_inp_channels=num_filters5,
+                           filter_size=filter_size6,
+                           num_filters=num_filters6,
+                           use_pooling=True)
+        layer_conv6_drop = dropout_layer(layer_conv6, keep_prob)
 
 
-layer_flat2, num_fc_layers2 = flatten_layer(layer_conv2_drop)
-layer_flat4, num_fc_layers4 = flatten_layer(layer_conv4_drop)
-layer_flat6, num_fc_layers6 = flatten_layer(layer_conv6_drop)
+        layer_flat2, num_fc_layers2 = flatten_layer(layer_conv2_drop)
+        layer_flat4, num_fc_layers4 = flatten_layer(layer_conv4_drop)
+        layer_flat6, num_fc_layers6 = flatten_layer(layer_conv6_drop)
 
-layer_flat = tf.concat([layer_flat2, layer_flat4, layer_flat6], 1)
-num_fc_layers = num_fc_layers2+num_fc_layers4+num_fc_layers6
+        layer_flat = tf.concat([layer_flat2, layer_flat4, layer_flat6], 1)
+        num_fc_layers = num_fc_layers2+num_fc_layers4+num_fc_layers6
 
-fc_layer1,weights_fc1 = fc_layer(layer_flat,          # The previous layer.
-             num_fc_layers,     # Num. inputs from prev. layer.
-             fc_size1,    # Num. outputs.
-             use_relu=True)
-fc_layer1_drop = dropout_layer(fc_layer1, keep_prob)
+        fc_layer1,weights_fc1 = fc_layer(layer_flat,          # The previous layer.
+                     num_fc_layers,     # Num. inputs from prev. layer.
+                     fc_size1,    # Num. outputs.
+                     use_relu=True)
+        fc_layer1_drop = dropout_layer(fc_layer1, keep_prob)
 
-fc_layer2,weights_fc2 = fc_layer(fc_layer1_drop,          # The previous layer.
-             fc_size1,     # Num. inputs from prev. layer.
-             fc_size2,    # Num. outputs.
-             use_relu=True)
-fc_layer2_drop = dropout_layer(fc_layer2, keep_prob)
+        fc_layer2,weights_fc2 = fc_layer(fc_layer1_drop,          # The previous layer.
+                     fc_size1,     # Num. inputs from prev. layer.
+                     fc_size2,    # Num. outputs.
+                     use_relu=True)
+        fc_layer2_drop = dropout_layer(fc_layer2, keep_prob)
 
-fc_layer3,weights_fc3 = fc_layer(fc_layer2_drop,          # The previous layer.
-             fc_size2,     # Num. inputs from prev. layer.
-             N_classes,    # Num. outputs.
-             use_relu=False)
+        fc_layer3,weights_fc3 = fc_layer(fc_layer2_drop,          # The previous layer.
+                     fc_size2,     # Num. inputs from prev. layer.
+                     N_classes,    # Num. outputs.
+                     use_relu=False)
 
-labels_pred = tf.nn.softmax(fc_layer3)
-labels_pred_cls = tf.argmax(labels_pred, dimension=1)
+        tf.add_to_collection('reg', weights_conv0)
+        tf.add_to_collection('reg', weights_conv1)
+        tf.add_to_collection('reg', weights_conv2)
+        tf.add_to_collection('reg', weights_conv3)
+        tf.add_to_collection('reg', weights_conv4)
+        tf.add_to_collection('reg', weights_conv5)
+        tf.add_to_collection('reg', weights_conv6)
+        tf.add_to_collection('reg', weights_fc1)
+        tf.add_to_collection('reg', weights_fc2)
+        tf.add_to_collection('reg', weights_fc3)
 
-regularizers = (tf.nn.l2_loss(weights_conv0)
-                + tf.nn.l2_loss(weights_conv1) + tf.nn.l2_loss(weights_conv2)
-                + tf.nn.l2_loss(weights_conv3) + tf.nn.l2_loss(weights_conv4)
-                + tf.nn.l2_loss(weights_conv5) + tf.nn.l2_loss(weights_conv6)
-                + tf.nn.l2_loss(weights_fc1)  + tf.nn.l2_loss(weights_fc2) +
-                tf.nn.l2_loss(weights_fc3))
 
-cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=fc_layer3, labels=labels_true)
+        labels_pred = tf.nn.softmax(fc_layer3)
+        labels_pred_cls = tf.argmax(labels_pred, dimension=1)
 
-cost = tf.reduce_mean(cross_entropy)+1e-5*regularizers
+        return fc_layer3, labels_pred, labels_pred_cls
 
-optimizer = tf.train.AdamOptimizer(learning_rate=1e-3).minimize(cost)
-
-correct_prediction = tf.equal(labels_pred_cls, labels_true_cls)
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-# classifier
 '''
 input:
-sess: tf.Session
 image_GS_test: shape (1, 128, 128, 3)
-return:
-logits: shape (1, 43)
-probs: shape (1, 43)
+label_test: one hot code, shape (1, 43)
+y_test: label id, shape (1,)
+keep_prob_test: default = 1.0
 '''
 def GTSRB_Classifier(sess, path, image_GS_test):
-    saver = tf.train.Saver()
+    fc_layer3, labels_pred, _ = GTSRB_Model(features=image_GS_test, keep_prob=1.0)
+    restore_vars = [var for var in tf.global_variables() if var.name.startswith('GTSRB')]
+    #g1 = tf.Graph()
+    #with g1.as_default():
+    saver = tf.train.Saver(restore_vars)
     # restore the model
-    saver.restore(sess=sess, save_path=path)
-    feed_dict_test = {features: image_GS_test,
-                     keep_prob:1.0}
-    logits, probs = sess.run([fc_layer3, labels_pred], feed_dict=feed_dict_test)
-    return logits, probs
+    with tf.Session() as sess1:
+        saver.restore(sess=sess1, save_path=path)
+        #feed_dict_test = {features: image_GS_test,keep_prob:1.0}
+        logits = fc_layer3.eval({features:image_GS_test,keep_prob:1.0 })
+        probs = labels_pred.eval({features:image_GS_test,keep_prob:1.0 })
+        return logits, probs
+
+
+if __name__ == "__main__":
+    image, label = load_image(4, "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\train.p", 43)
+    a,b =GTSRB_Classifier(1, "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\GTSRB\\model_best_test", image)
+    print(a)
+    print(b)
+

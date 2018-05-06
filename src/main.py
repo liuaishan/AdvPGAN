@@ -3,14 +3,14 @@ import os
 import scipy.misc
 import numpy as np
 
-from src.model import AdvPGAN
+from model import AdvPGAN
 import tensorflow as tf
 
 # hyperparameter
 flags = tf.app.flags
 flags.DEFINE_integer("epoch", 200, "epoch number to train")
 flags.DEFINE_integer("batch_size", 16, "batch size")
-flags.DEFINE_integer("traindata_size", 1e5, "train set size")
+flags.DEFINE_integer("traindata_size", 10000, "train set size")
 flags.DEFINE_integer("patch_size", 32, "patch size")
 flags.DEFINE_integer("channel", 3, "channel number")
 flags.DEFINE_integer("image_size", 128, "size of image")
@@ -20,8 +20,7 @@ flags.DEFINE_float("gamma", 1.0, "parameter gamma")
 flags.DEFINE_float("learning_rate", 0.0001, "learning rate")
 flags.DEFINE_float("base_image_num", 4, "base number of image to augment")
 flags.DEFINE_float("base_patch_num", 4, "base number of patch to augment")
-flags.DEFINE_string("data_dir", "..\\data\\model_1\\model_best_test.ckpt", "data directory")
-flags.DEFINE_string("target_model_dir", "..\\data", "data directory")
+flags.DEFINE_string("target_model_dir", "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\GTSRB\\model_best_test", "data directory")
 flags.DEFINE_string("checkpoint_dir", "..\\checkpoint", "directory to save model")
 flags.DEFINE_string("phase", "train", "current phase of model, e.g to train or test")
 flags.DEFINE_string("output_dir", "..\\output", "directory to save serialized image")
@@ -40,7 +39,7 @@ def main(_):
                     traindata_size=FLAGS.traindata_size,
                     base_image_num=FLAGS.base_image_num,
                     base_patch_num=FLAGS.base_patch_num,
-                    data_dir=FLAGS.data_dir, target_model_dir= FLAGS.target_model_dir,
+                    target_model_dir= FLAGS.target_model_dir,
                     checkpoint_dir=FLAGS.checkpoint_dir,
                     output_dir=FLAGS.output_dir)
 

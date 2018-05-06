@@ -105,7 +105,7 @@ def load_image( num, file_path, N_classes, encode='latin1' , extra=False, n_each
     else: # cifar-10 data set needs some pre-process
         temp_image = data['data']
         temp_image = temp_image.reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1).astype("float")
-    temp_label = data['labels']
+    temp_label = OHE_labels(data['labels'], N_classes)
 
     while(len(label) < num):
         # pick up randomly

@@ -19,6 +19,7 @@ from ops import conv2d
 from utils import load_data
 from utils import save_obj
 from utils import randomly_overlay
+from utils import shuffle_augment_and_load
 from GTSRB_Classifier import GTSRB_Classifier
 
 import os
@@ -118,8 +119,10 @@ class AdvPGAN(object):
      # pad the adversarial patch on image
     def pad_patch_on_image(self, image, patch):
         patched_image = randomly_overlay(image[0], patch[0])
+        patched_image = tf.expand_dims(patched_image, 0)
         for i in range(1, self.batch_size):
             temp = randomly_overlay(image[i], patch[i])
+            temp = tf.expand_dims(temp, 0)
             patched_image = tf.concat([patched_image, temp], 0)
         return patched_image
 

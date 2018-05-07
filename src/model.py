@@ -285,7 +285,7 @@ class AdvPGAN(object):
                 if np.mod(counter, 100) == 0:
                     save_obj(self.fake_image.eval({self.real_image: batch_data_x,
                                                    self.fake_patch: batch_data_z}),
-                             filename=self.output_dir+'/' + str(time.time() +'_image.pkl'))
+                             filename=self.output_dir+'/' + str(time.time()) +'_image.pkl')
 
                 # save model
                 if np.mod(counter, 500) == 0:

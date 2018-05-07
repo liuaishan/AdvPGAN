@@ -202,9 +202,12 @@ def GTSRB_Classifier(sess, path, image_GS_test):
     with tf.Session() as sess1:
         saver.restore(sess=sess1, save_path=path)
         #feed_dict_test = {features: image_GS_test,keep_prob:1.0}
+        ''' comment by Zhanganlan
         logits = fc_layer3.eval({features:image_GS_test,keep_prob:1.0 })
         probs = labels_pred.eval({features:image_GS_test,keep_prob:1.0 })
         return logits, probs
+        '''
+        return fc_layer3, labels_pred
 
 
 if __name__ == "__main__":

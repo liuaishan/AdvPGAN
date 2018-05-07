@@ -6,7 +6,7 @@ import os
 import matplotlib.pyplot as plt
 import random
 from sklearn.preprocessing import OneHotEncoder
-import cv2
+from scipy import misc
 
 # change list of labels to one hot encoder
 # e.g. [0,1,2] --> [[1,0,0],[0,1,0],[0,0,1]]
@@ -30,59 +30,32 @@ def pre_process_image(image):
     image = image/255. - .5
     return image
 
+def randomly_overlay(image, patch):
+    # randomly overlay the image with patch
+    patch_mask = np.ones([patch.shape[0],patch.shape[0],3], dtype=np.float32)
+    patch_mask = tf.convert_to_tensor(patch_mask)   
+    patch_size = int(patch.shape[0])*1.5
+    patch = tf.image.resize_image_with_crop_or_pad(patch, int(patch_size), int(patch_size))
+    patch_mask = tf.image.resize_image_with_crop_or_pad(patch_mask, int(patch_size), int(patch_size))
 
-# do rotation, translation and shear in the image
-def transform_image(image,ang_range,shear_range,trans_range):
-    # Rotation
-    ang_rot = np.random.uniform(ang_range)-ang_range/2
-    rows,cols,ch = image.shape    
-    Rot_M = cv2.getRotationMatrix2D((cols/2,rows/2),ang_rot,1)
-    # Translation
-    tr_x = trans_range*np.random.uniform()-trans_range/2
-    tr_y = trans_range*np.random.uniform()-trans_range/2
-    Trans_M = np.float32([[1,0,tr_x],[0,1,tr_y]])
-    # Shear
-    pts1 = np.float32([[5,5],[20,5],[5,20]])
-    pt1 = 5+shear_range*np.random.uniform()-shear_range/2
-    pt2 = 20+shear_range*np.random.uniform()-shear_range/2
-    pts2 = np.float32([[pt1,5],[pt2,pt1],[5,pt2]])
-    shear_M = cv2.getAffineTransform(pts1,pts2)
+    # rotate the patch and mask with the same angle
+    angle = np.random.uniform(low=-180.0, high=180.0)
+    def random_rotate_image_func(image, angle):
+        return misc.imrotate(image, angle, 'bicubic') 
+    patch_rotate = tf.py_func(random_rotate_image_func, [patch, angle], tf.uint8)
+    patch_mask = tf.py_func(random_rotate_image_func, [patch_mask, angle], tf.uint8)
+    patch_rotate = tf.image.convert_image_dtype(patch_rotate, tf.float32)
+    patch_mask = tf.image.convert_image_dtype(patch_mask, tf.float32)
+
+    # move the patch and mask to the sama location
+    location_x = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
+    location_y = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
+    patch_rotate = tf.image.pad_to_bounding_box(patch_rotate, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
+    patch_mask = tf.image.pad_to_bounding_box(patch_mask, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
         
-    image = cv2.warpAffine(image,Rot_M,(cols,rows))
-    image = cv2.warpAffine(image,Trans_M,(cols,rows))
-    image = cv2.warpAffine(image,shear_M,(cols,rows))
-    
-    image = pre_process_image(image)
-    
-    return image
-
-
-# generate extra data
-def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_range,randomize_Var): 
-    n_class = len(np.unique(y_train)) 
-    X_arr = []
-    Y_arr = []
-    n_train = len(X_train)
-    for i in range(n_train):
-        for i_n in range(n_each):
-            img_trf = transform_image(X_train[i],
-                                      ang_range,shear_range,trans_range)
-            X_arr.append(img_trf)
-            Y_arr.append(y_train[i])
-            
-    X_arr = np.array(X_arr,dtype = np.float32())
-    Y_arr = np.array(Y_arr,dtype = np.float32())
-    
-    if (randomize_Var == 1):
-        len_arr = np.arange(len(Y_arr))
-        np.random.shuffle(len_arr)
-        X_arr[len_arr] = X_arr
-        Y_arr[len_arr] = Y_arr
-
-    # liuaishan 2018.5.3 N_classes should be used instead of a constant
-    labels_arr = OHE_labels(Y_arr,N_classes)
-
-    return X_arr,Y_arr,labels_arr
+    # overlay the image with patch
+    image_with_patch = (1-patch_mask)*image + patch_rotate
+    return image_with_patch
 
 # ZhangAnlan 2018.5.3
 # param@num number of image/patch to load
@@ -90,7 +63,7 @@ def gen_extra_data(X_train,y_train,N_classes,n_each,ang_range,shear_range,trans_
 # returnVal@ return a pair of list of image/patch and corresponding labels i.e return image, label
 # extra=True --> need to generate extra data, otherwise only preprocess
 # N_classes, n_each=, ang_range, shear_range, trans_range and randomize_Var are parameters needed to generate extra data
-def load_image( num, file_path, N_classes, encode='latin1' , extra=False, n_each=5, ang_range=10, shear_range=2, trans_range=2, randomize_Var=1):
+def load_image( num, file_path, N_classes, encode='latin1'):
     image = []
     label = []
     with open(file_path, 'rb') as f:
@@ -114,10 +87,7 @@ def load_image( num, file_path, N_classes, encode='latin1' , extra=False, n_each
         label.append(temp_label[iter])
 
     # further tests are needed for ZhangAnlan
-    if(extra):
-        image, label, ohc_label = gen_extra_data(image[0:num], label[0:num], N_classes, n_each, ang_range, shear_range, trans_range, randomize_Var)
-    else:
-        image = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)
+    image = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)
 
     return image, label
 

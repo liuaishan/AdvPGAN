@@ -118,7 +118,7 @@ class AdvPGAN(object):
      # pad the adversarial patch on image
     def pad_patch_on_image(self, image, patch):
         patched_image = randomly_overlay(image[0], patch[0])
-        for i in range(1，self.batch_size):
+        for i in range(1, self.batch_size):
             temp = randomly_overlay(image[i], patch[i])
             patched_image = tf.concat([patched_image, temp]，0)
         return patched_image

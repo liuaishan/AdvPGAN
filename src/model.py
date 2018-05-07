@@ -65,8 +65,12 @@ class AdvPGAN(object):
         self.output_dir = output_dir
         self.rho = 1
         # liuaishan 2018.5.3 directory for training set of image and patch
+        '''
         self.image_dir = 'C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\train.p'
         self.patch_dir = 'C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\cifar-10-batches-py\\data_batch_1'
+        '''
+        self.image_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/train.p'
+        self.patch_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/cifar-10/data_batch_1'
 
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
@@ -254,16 +258,20 @@ class AdvPGAN(object):
                 batch_data_y = np.array(batch_data_y).astype(np.float32)
                 batch_data_z = np.array(batch_data_z).astype(np.float32)
 
-
+                # modify by ZhangAnlan
                 self.sess.run([d_opt],
-                             feed_dict={self.real_image: batch_data_x})
+                             feed_dict={self.real_image: batch_data_x,
+                                        self.y: batch_data_y,
+                                        self.real_patch: batch_data_z})
 
                 self.sess.run([g_opt],
                               feed_dict={self.real_image: batch_data_x,
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z})
-
-                errD = self.d_loss.eval({self.real_image: batch_data_x})
+                # modify by ZhangAnlan
+                errD = self.d_loss.eval({self.real_image: batch_data_x,
+                                         self.y: batch_data_y,
+                                         self.real_patch: batch_data_z})
                 errG = self.g_loss.eval({self.real_image: batch_data_x,
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z})

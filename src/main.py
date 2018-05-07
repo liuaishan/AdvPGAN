@@ -20,10 +20,13 @@ flags.DEFINE_float("gamma", 1.0, "parameter gamma")
 flags.DEFINE_float("learning_rate", 0.0001, "learning rate")
 flags.DEFINE_float("base_image_num", 4, "base number of image to augment")
 flags.DEFINE_float("base_patch_num", 4, "base number of patch to augment")
-flags.DEFINE_string("target_model_dir", "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\GTSRB\\model_best_test", "data directory")
-flags.DEFINE_string("checkpoint_dir", "..\\checkpoint", "directory to save model")
+# flags.DEFINE_string("target_model_dir", "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\GTSRB\\model_best_test", "data directory")
+flags.DEFINE_string("target_model_dir", "/home/dsg/liuas/AnlanZhang/GTSRB/model_new/test_model_2/model_best_test", "data directory")
+# flags.DEFINE_string("checkpoint_dir", "..\\checkpoint", "directory to save model")
+flags.DEFINE_string("checkpoint_dir", "../checkpoint", "directory to save model")
 flags.DEFINE_string("phase", "train", "current phase of model, e.g to train or test")
-flags.DEFINE_string("output_dir", "..\\output", "directory to save serialized image")
+# flags.DEFINE_string("output_dir", "..\\output", "directory to save serialized image")
+flags.DEFINE_string("output_dir", "../output", "directory to save serialized image")
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):

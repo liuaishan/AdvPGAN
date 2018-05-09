@@ -192,21 +192,22 @@ label_test: one hot code, shape (1, 43)
 y_test: label id, shape (1,)
 keep_prob_test: default = 1.0
 '''
-def GTSRB_Classifier(sess, path, image_GS_test):
+def GTSRB_Classifier(path, image_GS_test, load_already=False):
     fc_layer3, labels_pred, _ = GTSRB_Model(features=image_GS_test, keep_prob=1.0)
-    restore_vars = [var for var in tf.global_variables() if var.name.startswith('GTSRB')]
-    #g1 = tf.Graph()
-    #with g1.as_default():
-    saver = tf.train.Saver(restore_vars)
-    # restore the model
-    with tf.Session() as sess1:
-        saver.restore(sess=sess1, save_path=path)
-        #feed_dict_test = {features: image_GS_test,keep_prob:1.0}
-        ''' comment by Zhanganlan
-        logits = fc_layer3.eval({features:image_GS_test,keep_prob:1.0 })
-        probs = labels_pred.eval({features:image_GS_test,keep_prob:1.0 })
-        return logits, probs
-        '''
+    if not load_already:
+        restore_vars = [var for var in tf.global_variables() if var.name.startswith('GTSRB')]
+        saver = tf.train.Saver(restore_vars)
+        # restore the model
+        with tf.Session() as sess1:
+            saver.restore(sess=sess1, save_path=path)
+            #feed_dict_test = {features: image_GS_test,keep_prob:1.0}
+            '''comment by Zhanganlan
+            logits = fc_layer3.eval({features:image_GS_test,keep_prob:1.0 })
+            probs = labels_pred.eval({features:image_GS_test,keep_prob:1.0 })
+            return logits, probs
+            '''
+            return fc_layer3, labels_pred
+    else:
         return fc_layer3, labels_pred
 
 

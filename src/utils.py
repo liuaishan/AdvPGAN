@@ -50,6 +50,8 @@ def randomly_overlay(image, patch):
     # move the patch and mask to the sama location
     location_x = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
     location_y = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
+    # location_x = 0
+    # location_y = 0
     patch_rotate = tf.image.pad_to_bounding_box(patch_rotate, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
     patch_mask = tf.image.pad_to_bounding_box(patch_mask, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
 
@@ -73,7 +75,7 @@ def load_image( num, file_path, N_classes, encode='latin1'):
     # the names of the keys should be unified as 'data', 'labels'
     # todo Zhanganlan
     # to be removed! liuas test!!!!!!!!
-    if str(file_path).endswith("train.p"):
+    if str(file_path).endswith("train.p") or str(file_path).endswith("test.p"):
         temp_image = data['features']
     else: # cifar-10 data set needs some pre-process
         temp_image = data['data']
@@ -85,6 +87,7 @@ def load_image( num, file_path, N_classes, encode='latin1'):
         iter = random.randint(0, len(temp_label) - 1)
         image.append(temp_image[iter])
         label.append(temp_label[iter])
+        # print(data['labels'][iter])
 
     # further tests are needed for ZhangAnlan
     image = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)

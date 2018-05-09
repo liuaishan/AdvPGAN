@@ -8,7 +8,7 @@ import tensorflow as tf
 
 # hyperparameter
 flags = tf.app.flags
-flags.DEFINE_integer("epoch", 200, "epoch number to train")
+flags.DEFINE_integer("epoch", 10000, "epoch number to train")
 flags.DEFINE_integer("batch_size", 16, "batch size")
 flags.DEFINE_integer("traindata_size", 10000, "train set size")
 flags.DEFINE_integer("patch_size", 32, "patch size")
@@ -18,8 +18,8 @@ flags.DEFINE_float("alpha", 1.0, "parameter alpha")
 flags.DEFINE_float("beta", 1.0, "parameter beta")
 flags.DEFINE_float("gamma", 1.0, "parameter gamma")
 flags.DEFINE_float("learning_rate", 0.0001, "learning rate")
-flags.DEFINE_float("base_image_num", 4, "base number of image to augment")
-flags.DEFINE_float("base_patch_num", 4, "base number of patch to augment")
+flags.DEFINE_float("base_image_num", 16, "base number of image to augment")
+flags.DEFINE_float("base_patch_num", 16, "base number of patch to augment")
 # flags.DEFINE_string("target_model_dir", "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\GTSRB\\model_best_test", "data directory")
 flags.DEFINE_string("target_model_dir", "/home/dsg/liuas/AnlanZhang/GTSRB/model_new/test_model_2/model_best_test", "data directory")
 # flags.DEFINE_string("checkpoint_dir", "..\\checkpoint", "directory to save model")

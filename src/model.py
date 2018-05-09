@@ -21,6 +21,7 @@ from utils import save_obj
 from utils import randomly_overlay
 from utils import shuffle_augment_and_load
 from GTSRB_Classifier import GTSRB_Classifier
+from GTSRB_Classifier import GTSRB_Model
 
 import os
 import time
@@ -41,7 +42,7 @@ class AdvPGAN(object):
     def __init__(self, sess, batch_size=16, image_size=128, patch_size=32,
                  channel=3, alpha=1, beta=1, gamma=1, learning_rate=0.0001,
                  epoch=10000, traindata_size=10000,
-                 base_image_num = 4, base_patch_num = 4,
+                 base_image_num = 16, base_patch_num = 16,
                  target_model_dir=None, checkpoint_dir=None,output_dir=None):
 
         # hyperparameter
@@ -64,20 +65,13 @@ class AdvPGAN(object):
         self.checkpoint_dir = checkpoint_dir
         self.output_dir = output_dir
         self.rho = 1
-        # liuaishan 2018.5.3 directory for training set of image and patch
-        '''
-        self.image_dir = 'C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\train.p'
-        self.patch_dir = 'C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\cifar-10-batches-py\\data_batch_1'
-        '''
+        self.d_train_freq = 10
         self.image_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/train.p'
         self.patch_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/cifar-10/data_batch_1'
-
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
 
         self.build_model()
-
-
 
 
     # Generator of cGAN for adversarial patch
@@ -85,40 +79,41 @@ class AdvPGAN(object):
     # input: patch image with size n*n
     # output: adversarial patch image with size n*n
     # no gaussian noise needed
-    def generator(self, image):
-        # do we need here???
-        #image = image / 255.0
-        self.conv1 = _conv_layer(image, 32, 9, 1, name="adv_g_conv1")
-        conv2 = _conv_layer(self.conv1, 64, 3, 2, name="adv_g_conv2")
-        conv3 = _conv_layer(conv2, 128, 3, 2, name="adv_g_conv3")
-        resid1 = _residual_block(conv3, 3, name="adv_g_resid1")
-        resid2 = _residual_block(resid1, 3, name="adv_g_resid2")
-        resid3 = _residual_block(resid2, 3, name="adv_g_resid3")
-        resid4 = _residual_block(resid3, 3, name="adv_g_resid4")
-        resid5 = _residual_block(resid4, 3, name="adv_g_resid5")
-        conv_t1 = _conv_tranpose_layer(resid5, 64, 3, 2, name="adv_g_deconv1")
-        conv_t2 = _conv_tranpose_layer(conv_t1, 32, 3, 2, name="adv_g_deconv2")
-        conv_t3 = _conv_layer(conv_t2, 3, 9, 1, relu=False, name="adv_g_deconv3")
-        preds = tf.nn.tanh(conv_t3)
-        output = image + preds
-        # do we need here???
-        #return tf.nn.tanh(output) * 127.5 + 255./2
-        return tf.nn.tanh(output)
+    def generator(self, image, reuse=False):
+        with tf.variable_scope("generator") as scope:
+
+            # image is 128 x 128 x (input_c_dim + output_c_dim)
+            if reuse:
+                tf.get_variable_scope().reuse_variables()
+            else:
+                assert tf.get_variable_scope().reuse == False
+            # do we need here???
+            #image = image / 255.0
+            self.conv1 = _conv_layer(image, 32, 9, 1, name="adv_g_conv1")
+            conv2 = _conv_layer(self.conv1, 64, 3, 2, name="adv_g_conv2")
+            conv3 = _conv_layer(conv2, 128, 3, 2, name="adv_g_conv3")
+            resid1 = _residual_block(conv3, 3, name="adv_g_resid1")
+            resid2 = _residual_block(resid1, 3, name="adv_g_resid2")
+            resid3 = _residual_block(resid2, 3, name="adv_g_resid3")
+            resid4 = _residual_block(resid3, 3, name="adv_g_resid4")
+            resid5 = _residual_block(resid4, 3, name="adv_g_resid5")
+            conv_t1 = _conv_tranpose_layer(resid5, 64, 3, 2, name="adv_g_deconv1")
+            conv_t2 = _conv_tranpose_layer(conv_t1, 32, 3, 2, name="adv_g_deconv2")
+            conv_t3 = _conv_layer(conv_t2, 3, 9, 1, relu=False, name="adv_g_deconv3")
+            preds = tf.nn.tanh(conv_t3)
+            output = image + preds
+            # do we need here???
+            #return tf.nn.tanh(output) * 127.5 + 255./2
+            return tf.nn.tanh(output)
 
 
     # target model to attack
     def target_model_discriminator(self, image, reuse = False):
         # here, we call CNN model for GTSRB
-        return GTSRB_Classifier(self.sess, self.target_model_dir, image)
-
-        #liuas test!!!
-        '''
-        logits = [[0.0]*43]*16
-
-        prob = [[0.0]*43]*16
-
-        return logits, prob
-        '''
+        # return GTSRB_Classifier(self.target_model_dir, image)
+        # Modify by ZhangAnlan, just build the model of GTSRB, do not restore variables
+        fc_layer3, labels_pred, _ = GTSRB_Model(features=image, keep_prob=1.0)
+        return fc_layer3, labels_pred
 
      # pad the adversarial patch on image
     def pad_patch_on_image(self, image, patch):
@@ -129,16 +124,6 @@ class AdvPGAN(object):
             temp = tf.expand_dims(temp, 0)
             patched_image = tf.concat([patched_image, temp], 0)
         return patched_image
-
-        # self.patch_var = tf.Variable(tf.zeros(shape=patch.get_shape()))
-        # self.image_var = tf.Variable(tf.zeros(shape=image.get_shape()))
-        # width = self.patch_var.get_shape()[1]
-        # self.image_var.assign(image)
-        # tf.assign(self.image_var[:, 0: width, 0: width, :], self.patch_var)
-        # self.patch_var.assign(patch)
-
-        # tf.assign(self.image_var[:, 0: width, 0: width, :], self.patch_var)
-        # return self.image_var
 
     # naive discriminator in GAN
     # using for adversarial training
@@ -208,6 +193,12 @@ class AdvPGAN(object):
         self.g_loss = self.alpha * self.loss_g_adv + self.beta * self.patch_loss + self.gamma * self.ae_loss
         self.d_loss = self.loss_d_adv
 
+        # accuracy for misclassification rate of target model
+        #self.accuracy = self.test_classify(image=self.real_image, imagelabel=self.y, patch=self.real_patch)
+        self.predictions = tf.argmax(self.fake_prob_f, 1)
+        self.real_label = tf.argmax(self.y, 1)
+        self.accuracy = tf.reduce_mean((tf.cast(tf.not_equal(self.predictions, self.real_label), tf.float32)))
+
         # load target model
         # restore_vars = [var for var in tf.global_variables() if var.name.startswith('adv_')]
         # saver = tf.train.Saver(restore_vars)
@@ -228,7 +219,21 @@ class AdvPGAN(object):
         g_opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate).\
             minimize(self.g_loss, var_list=self.g_vars)
 
+        ''' test by ZhangAnlan, the result show that the variables of GTSRB are included in the space of global variables
+        for var in tf.global_variables():
+            print(var.name)
+        exit()      
+        '''
+
+        # note that if we restore GTSRB variables before global_variables_initializer,
+        # the GTSRB variables will be reinitialized
         init_op = tf.global_variables_initializer()
+        '''
+        comment by ZhangAnlan:
+        Except self.d_vars and self.g_vars, there are some other variables that need to be initialized
+        so I just initialize all the variables at first and then restore the variables of GTSRB
+        '''
+        # init_op = tf.initialize_variables(self.d_vars+self.g_vars)
 
         self.sess.run(init_op)
 
@@ -240,15 +245,17 @@ class AdvPGAN(object):
         else:
             print(" [!] Load failed...")
 
+        # Modify by ZhangAnlan
+        # here we restore the variables of GTSRB model
+        restore_vars = [var for var in tf.global_variables() if var.name.startswith('GTSRB')]
+        saver = tf.train.Saver(restore_vars)
+        saver.restore(sess=self.sess, save_path=self.target_model_dir)
+
         for epoch in range(self.epoch):
 
-            #image_set = glob(self.data_dir+r'*.jpg')
-            #batch_iteration = min(len(image_set), self.traindata_size) / self.batch_size
             batch_iteration = self.traindata_size / self.batch_size
 
             for id in range(int(batch_iteration)):
-                #batch_files = image_set[id*self.batch_size: (id+1)*self.batch_size]
-                #batch_data_x, batch_data_y = [load_data(file, self.image_size) for file in batch_files]
 
                 batch_data_x, batch_data_y, batch_data_z  = \
                     shuffle_augment_and_load(self.base_image_num, self.image_dir, self.base_patch_num,
@@ -258,28 +265,70 @@ class AdvPGAN(object):
                 batch_data_y = np.array(batch_data_y).astype(np.float32)
                 batch_data_z = np.array(batch_data_z).astype(np.float32)
 
-                # modify by ZhangAnlan
-                self.sess.run([d_opt],
-                             feed_dict={self.real_image: batch_data_x,
+
+                '''test by ZhangAnlan, printf the predictions, real_label and accuracy for 20 batches
+                pre = self.predictions.eval({self.real_image: batch_data_x,
                                         self.y: batch_data_y,
                                         self.real_patch: batch_data_z})
+                print("predictions:")
+                print(pre)
+                real_l = self.real_label.eval({self.real_image: batch_data_x,
+                                            self.y: batch_data_y,
+                                            self.real_patch: batch_data_z})
+                print("real_label:")
+                print(real_l)
+                acc = self.accuracy.eval({self.real_image: batch_data_x,
+                                        self.y: batch_data_y,
+                                         self.real_patch: batch_data_z})
+                print("Accuracy of misclassification: %4.4f" %acc)
+                if(id == 20):
+                    exit()
+                continue
+                '''
+
+                # liuas 2018.5.7 we train D once while G d_train_freq times in one iteration
+                if (id+1) % self.d_train_freq == 0:
+                    # modify by ZhangAnlan
+                    self.sess.run([d_opt],
+                                 feed_dict={self.real_image: batch_data_x,
+                                            self.y: batch_data_y,
+                                            self.real_patch: batch_data_z})
+                    errD = self.d_loss.eval({self.real_image: batch_data_x,
+                                             self.y: batch_data_y,
+                                             self.real_patch: batch_data_z})
+                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f" \
+                          % (epoch, id, batch_iteration,
+                             time.time() - start_time, errD))
 
                 self.sess.run([g_opt],
                               feed_dict={self.real_image: batch_data_x,
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z})
                 # modify by ZhangAnlan
-                errD = self.d_loss.eval({self.real_image: batch_data_x,
-                                         self.y: batch_data_y,
-                                         self.real_patch: batch_data_z})
+
                 errG = self.g_loss.eval({self.real_image: batch_data_x,
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z})
 
                 counter += 1
-                print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
+                print("Epoch: [%2d] [%4d/%4d] time: %4.4f,g_loss: %.8f" \
                       % (epoch, id, batch_iteration,
-                         time.time() - start_time, errD, errG))
+                         time.time() - start_time, errG))
+
+                # test the accuracy
+                if np.mod(counter, 1000) == 0:
+                    acc = self.accuracy.eval({self.real_image: batch_data_x,
+                                         self.y: batch_data_y,
+                                         self.real_patch: batch_data_z})
+                    '''
+                    print(self.predictions.eval({self.real_image: batch_data_x,
+                                         self.y: batch_data_y,
+                                         self.real_patch: batch_data_z}))
+                    print(self.real_label.eval({self.real_image: batch_data_x,
+                                         self.y: batch_data_y,
+                                         self.real_patch: batch_data_z}))
+                    '''
+                    print("Accuracy of misclassification: %4.4f" %acc)
 
                 # serialize and save image objects
                 if np.mod(counter, 100) == 0:
@@ -318,6 +367,7 @@ class AdvPGAN(object):
             return True
         else:
             return False
+
 
 
 

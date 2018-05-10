@@ -18,6 +18,8 @@ from ops import linear
 from ops import conv2d
 from utils import load_data
 from utils import save_obj
+from utils import save_patches
+from utils import plot_acc
 from utils import randomly_overlay
 from utils import shuffle_augment_and_load
 from GTSRB_Classifier import GTSRB_Classifier
@@ -239,6 +241,7 @@ class AdvPGAN(object):
 
         start_time = time.time()
         counter = 1
+        acc_history = []
 
         if self.load(self.checkpoint_dir):
             print(" [*] Load SUCCESS")
@@ -328,7 +331,12 @@ class AdvPGAN(object):
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z}))
                     '''
-                    print("Accuracy of misclassification: %4.4f" %acc)
+                    np.append(acc_history, acc)
+                    plot_acc(acc_history, filename=self.output_dir+'/' +'Accrucy.jpg')
+
+                    save_patches(self.fake_patch.eval({self.real_image: batch_data_x,
+                                                   self.fake_patch: batch_data_z}),
+                             filename=self.output_dir+'/' + str(time.time()) +'_patches.pkl')
 
                 # serialize and save image objects
                 if np.mod(counter, 100) == 0:

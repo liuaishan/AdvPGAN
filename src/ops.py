@@ -47,11 +47,13 @@ def _conv_layer(net, num_filters, filter_size, strides, relu=True, name="conv2d"
         net = _instance_norm(net)
         if relu:
             net = tf.nn.relu(net)
+        else: # liuas 2018.5.9
+            net = lrelu(net)
 
         return net
 
 # deconvolution layer
-def _conv_tranpose_layer(net, num_filters, filter_size, strides, name="tansconv"):
+def _conv_tranpose_layer(net, num_filters, filter_size, strides, relu=True, name="tansconv"):
     with tf.variable_scope(name):
         weights_init = _conv_init_vars(net, num_filters, filter_size, transpose=True, name=name)
 
@@ -64,7 +66,12 @@ def _conv_tranpose_layer(net, num_filters, filter_size, strides, name="tansconv"
 
         net = tf.nn.conv2d_transpose(net, weights_init, tf_shape, strides_shape, padding='SAME')
         net = _instance_norm(net)
-        return tf.nn.relu(net)
+
+        # liuas 2018.5.9
+        if relu:
+            return tf.nn.relu(net)
+        else:
+            return lrelu(net)
 
 # residual layer
 def _residual_block(net, filter_size=3, name="residual"):

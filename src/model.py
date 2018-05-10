@@ -6,8 +6,6 @@
 
 
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
-import tensorflow.contrib.slim.nets as nets
 
 from ops import _conv_layer
 from ops import _residual_block
@@ -16,7 +14,6 @@ from ops import lrelu
 from ops import batch_norm
 from ops import linear
 from ops import conv2d
-from utils import load_data
 from utils import save_obj
 from utils import save_patches
 from utils import plot_acc
@@ -69,6 +66,7 @@ class AdvPGAN(object):
         self.rho = 1
         self.d_train_freq = 5
         self.image_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/train.p'
+        self.test_img_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/test.p'
         self.patch_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/cifar-10/data_batch_1'
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num

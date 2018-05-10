@@ -343,7 +343,7 @@ class AdvPGAN(object):
                     print("Accuracy of misclassification: %4.4f" % acc)
 
                 # liuas 2018.5.10 test
-                if np.mod(id, 1000):
+                if np.mod(counter, 1000):
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
 
                     # accuracy in the test set 2018.5.10 ZhangAnlan

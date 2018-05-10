@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import random
 from sklearn.preprocessing import OneHotEncoder
 from scipy import misc
+import math
 
 # change list of labels to one hot encoder
 # e.g. [0,1,2] --> [[1,0,0],[0,1,0],[0,0,1]]
@@ -173,6 +174,28 @@ def save_obj(tensor, filename):
     with open(filename, 'wb') as f:
         f.write(serialized)
 
+# save patches
+def save_patches(patches, filename):
+    num = int(math.sqrt(int(patches.shape[0])))
+    for i in range(num):
+        for j in range(num):
+            temp = tf.image.resize_image_with_crop_or_pad(patches[i*num+j], int(patches.shape[1])+2, int(patches.shape[1])+2)
+            if not j:
+                row = temp
+            else:
+                row = tf.concat([row, temp], 1)
+        if not i:
+            show_patch = row
+        else:
+            show_patch = tf.concat([show_img, row], 0)
+        del row
+    plt.figure(figsize=(5,5))
+    plt.imshow(show_patch.eval())
+    plt.axis('off')
+    plt.savefig(filename, dpi=200)
+    plt.close()
+
+
 # load tensor
 def load_obj(filename):
     if os.path.exists(filename):
@@ -191,3 +214,9 @@ def show_image(image):
     plt.imshow(_convert(image), interpolation="nearest")
     plt.show()
 
+# plot accrucy
+def plot_acc(acc, filename):
+    plt.plot(acc)
+    plt.ylabel('Accrucy')
+    plt.savefig(filename, dpi=200)
+    plt.close() 

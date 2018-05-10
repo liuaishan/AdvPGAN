@@ -300,26 +300,15 @@ class AdvPGAN(object):
                                              self.y: batch_data_y,
                                              self.real_patch: batch_data_z})
 
-                    errG = self.g_loss.eval({self.real_image: batch_data_x,
-                                             self.y: batch_data_y,
-                                             self.real_patch: batch_data_z})
-
                 self.sess.run([d_opt],
                               feed_dict={self.real_image: batch_data_x,
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z})
 
-                errD = self.d_loss.eval({self.real_image: batch_data_x,
-                                         self.y: batch_data_y,
-                                         self.real_patch: batch_data_z})
-
                 counter += 1
-                print("Epoch: [%2d] [%4d/%4d] time: %4.4f,g_loss: %.8f" \
-                      % (epoch, id, batch_iteration,
-                         time.time() - start_time, errG))
 
                 # test the accuracy
-                # liuas 2018.5.9 test
+                # liuas 2018.5.9 validation
                 if np.mod(counter, 100) == 0:
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
                     print("[Validation].......")
@@ -355,7 +344,7 @@ class AdvPGAN(object):
                     '''
                     print("Accuracy of misclassification: %4.4f" % acc)
 
-                # liuas 2018.5.10
+                # liuas 2018.5.10 test
                 if np.mod(id, 1000):
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
 

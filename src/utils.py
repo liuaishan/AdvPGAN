@@ -28,11 +28,9 @@ def pre_process_image(image):
     # error occurs when cifar-10 is te
     # solve in 2018.5.11 ZhangAnlan
     # the data type of image that used in equalizeHist must be uint8
-    
-    # image[:,:,0] = cv2.equalizeHist(image[:,:,0])
-    # image[:,:,1] = cv2.equalizeHist(image[:,:,1])
-    # image[:,:,2] = cv2.equalizeHist(image[:,:,2])
-
+    image[:,:,0] = cv2.equalizeHist(image[:,:,0])
+    image[:,:,1] = cv2.equalizeHist(image[:,:,1])
+    image[:,:,2] = cv2.equalizeHist(image[:,:,2])
     # image = image/255. - .5
     image = image/255.
     return image
@@ -82,6 +80,7 @@ def load_image( num, file_path, N_classes, encode='latin1'):
     # the names of the keys should be unified as 'data', 'labels'
     # todo Zhanganlan
     # to be removed! liuas test!!!!!!!!
+    # Modify 2018.5.11 ZhangAnlan
     '''
     if str(file_path).endswith("train.p") or str(file_path).endswith("test.p"):
         temp_image = data['features']

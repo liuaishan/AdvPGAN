@@ -1,13 +1,16 @@
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import PIL
 import numpy as np
 import tensorflow as tf
 import pickle
 import os
-import matplotlib.pyplot as plt
 import random
 from sklearn.preprocessing import OneHotEncoder
 from scipy import misc
 import math
+import cv2
 
 # change list of labels to one hot encoder
 # e.g. [0,1,2] --> [[1,0,0],[0,1,0],[0,0,1]]
@@ -22,13 +25,16 @@ def OHE_labels(Y_tr, N_classes):
 # this function can be merged with preprocess_image(img, image_size)
 def pre_process_image(image):
     # todo Zhanganlan
-    # error occurs when cifar-10 is tested
-    '''
-    image[:,:,0] = cv2.equalizeHist(image[:,:,0])
-    image[:,:,1] = cv2.equalizeHist(image[:,:,1])
-    image[:,:,2] = cv2.equalizeHist(image[:,:,2])
-    '''
-    image = image/255. - .5
+    # error occurs when cifar-10 is te
+    # solve in 2018.5.11 ZhangAnlan
+    # the data type of image that used in equalizeHist must be uint8
+    
+    # image[:,:,0] = cv2.equalizeHist(image[:,:,0])
+    # image[:,:,1] = cv2.equalizeHist(image[:,:,1])
+    # image[:,:,2] = cv2.equalizeHist(image[:,:,2])
+
+    # image = image/255. - .5
+    image = image/255.
     return image
 
 def randomly_overlay(image, patch):
@@ -76,11 +82,14 @@ def load_image( num, file_path, N_classes, encode='latin1'):
     # the names of the keys should be unified as 'data', 'labels'
     # todo Zhanganlan
     # to be removed! liuas test!!!!!!!!
+    '''
     if str(file_path).endswith("train.p") or str(file_path).endswith("test.p"):
         temp_image = data['features']
     else: # cifar-10 data set needs some pre-process
         temp_image = data['data']
         temp_image = temp_image.reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1).astype("float")
+    '''
+    temp_image = data['data']
     temp_label = OHE_labels(data['labels'], N_classes)
 
     while(len(label) < num):
@@ -134,7 +143,6 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
             result_img_label.append(image_label_set[ran_img])
             result_patch.append(patch_set[random.randint(0, patch_num - 1)])
         return result_img,result_img_label,result_patch
-
 
 # save tensor
 def save_obj(tensor, filename):
@@ -190,3 +198,24 @@ def plot_acc(acc, filename):
     plt.ylabel('Accrucy')
     plt.savefig(filename, dpi=200)
     plt.close() 
+
+# show image with patch and accuracy
+def plot_images_and_acc(image, result, acc, num, filename):
+    size = int(math.ceil(math.sqrt(num)))
+    # acc = tf.cast(tf.count_nonzero(result), tf.float32)/float(num)
+    fig = plt.figure(figsize=(5,5))
+    fig.suptitle('Accuracy of misclassification: %4.4f' % acc, verticalalignment='top')
+    for i in range(size):
+        for j in range(size):
+            if(i*size+j < num):
+                temp = image[i*size+j]
+                p = fig.add_subplot(size,size,i*size+j)
+                # p = plt.subplot(size,size,i*size+j)
+                p.imshow(temp.eval())
+                p.axis('off')
+                if(result[i*size+j]!=0):
+                    p.set_title("Wrong", fontsize=8)
+                else:
+                    p.set_title("Right")    
+    # plt.title('Accuracy of misclassification: %4.4f' % acc)    
+    fig.savefig(filename, dpi=200)

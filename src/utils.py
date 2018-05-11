@@ -136,36 +136,6 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
         return result_img,result_img_label,result_patch
 
 
-# preprocess the image
-def preprocess_image(img, image_size=128):
-    big_dim = max(img.width, img.height)
-    wide = img.width > img.height
-    new_w = image_size if not wide else int(img.width * image_size / img.height)
-    new_h = image_size if wide else int(img.height * image_size / img.width)
-    img = img.resize((new_w, new_h)).crop((0, 0, image_size, image_size))
-    img = (np.asarray(img) / 255.0).astype(np.float32)
-    return img
-
-# load image and corresponding label
-def load_data(img_path, image_size=299):
-    img = PIL.Image.open(img_path)
-
-    # liuaishan 2018.4.12 for python2.7, remove later
-    # img.width = img.size[0]
-    # img.height = img.size[1]
-
-    big_dim = max(img.width, img.height)
-    wide = img.width > img.height
-    new_w = image_size if not wide else int(img.width * image_size / img.height)
-    new_h = image_size if wide else int(img.height * image_size / img.width)
-    img = img.resize((new_w, new_h)).crop((0, 0, image_size, image_size))
-    img = (np.asarray(img) / 255.0).astype(np.float32)
-
-    # todo read label
-    y_hat=10
-    label = tf.one_hot(y_hat, 1000)
-    return img, label
-
 # save tensor
 def save_obj(tensor, filename):
     tensor = np.asarray(tensor).astype(np.float32)
@@ -187,7 +157,7 @@ def save_patches(patches, filename):
         if not i:
             show_patch = row
         else:
-            show_patch = tf.concat([show_img, row], 0)
+            show_patch = tf.concat([show_patch, row], 0)
         del row
     plt.figure(figsize=(5,5))
     plt.imshow(show_patch.eval())

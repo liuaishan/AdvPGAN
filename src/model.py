@@ -6,8 +6,6 @@
 
 
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
-import tensorflow.contrib.slim.nets as nets
 
 from ops import _conv_layer
 from ops import _residual_block
@@ -16,20 +14,16 @@ from ops import lrelu
 from ops import batch_norm
 from ops import linear
 from ops import conv2d
-from utils import load_data
 from utils import save_obj
 from utils import save_patches
 from utils import plot_acc
 from utils import randomly_overlay
 from utils import shuffle_augment_and_load
-from GTSRB_Classifier import GTSRB_Classifier
 from GTSRB_Classifier import GTSRB_Model
 
 import os
 import time
-import glob
 import numpy as np
-from scipy import misc
 
 
 
@@ -41,10 +35,10 @@ from scipy import misc
 
 class AdvPGAN(object):
 
-    def __init__(self, sess, batch_size=16, image_size=128, patch_size=32,
+    def __init__(self, sess, batch_size=64, image_size=128, patch_size=32,
                  channel=3, alpha=1, beta=1, gamma=1, learning_rate=0.0001,
                  epoch=10000, traindata_size=10000,
-                 base_image_num = 16, base_patch_num = 16,
+                 base_image_num = 4, base_patch_num = 4,
                  target_model_dir=None, checkpoint_dir=None,output_dir=None):
 
         # hyperparameter
@@ -67,8 +61,9 @@ class AdvPGAN(object):
         self.checkpoint_dir = checkpoint_dir
         self.output_dir = output_dir
         self.rho = 1
-        self.d_train_freq = 10
+        self.d_train_freq = 5
         self.image_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/train.p'
+        self.test_img_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/test.p'
         self.patch_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/cifar-10/data_batch_1'
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
@@ -91,9 +86,11 @@ class AdvPGAN(object):
                 assert tf.get_variable_scope().reuse == False
             # do we need here???
             #image = image / 255.0
-            self.conv1 = _conv_layer(image, 32, 9, 1, name="adv_g_conv1")
-            conv2 = _conv_layer(self.conv1, 64, 3, 2, name="adv_g_conv2")
-            conv3 = _conv_layer(conv2, 128, 3, 2, name="adv_g_conv3")
+            # liuas 2018.5.9
+            # trick: using lrelu instead of relu
+            self.conv1 = _conv_layer(image, 32, 9, 1, relu=False, name="adv_g_conv1")
+            conv2 = _conv_layer(self.conv1, 64, 3, 2, relu=False, name="adv_g_conv2")
+            conv3 = _conv_layer(conv2, 128, 3, 2, relu=False, name="adv_g_conv3")
             resid1 = _residual_block(conv3, 3, name="adv_g_resid1")
             resid2 = _residual_block(resid1, 3, name="adv_g_resid2")
             resid3 = _residual_block(resid2, 3, name="adv_g_resid3")
@@ -216,7 +213,8 @@ class AdvPGAN(object):
 
     # train cGAN model
     def train_op(self):
-        d_opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate).\
+        #liuas 2018.5.9 trick: using Adam for G, SGD for D
+        d_opt = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).\
             minimize(self.d_loss, var_list=self.d_vars)
         g_opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate).\
             minimize(self.g_loss, var_list=self.g_vars)
@@ -289,60 +287,87 @@ class AdvPGAN(object):
                 continue
                 '''
 
-                # liuas 2018.5.7 we train D once while G d_train_freq times in one iteration
+                # liuas 2018.5.7 we train G once while D d_train_freq times in one iteration
                 if (id+1) % self.d_train_freq == 0:
                     # modify by ZhangAnlan
-                    self.sess.run([d_opt],
+                    self.sess.run([g_opt],
                                  feed_dict={self.real_image: batch_data_x,
                                             self.y: batch_data_y,
                                             self.real_patch: batch_data_z})
-                    errD = self.d_loss.eval({self.real_image: batch_data_x,
-                                             self.y: batch_data_y,
-                                             self.real_patch: batch_data_z})
-                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f" \
-                          % (epoch, id, batch_iteration,
-                             time.time() - start_time, errD))
 
-                self.sess.run([g_opt],
+                self.sess.run([d_opt],
                               feed_dict={self.real_image: batch_data_x,
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z})
-                # modify by ZhangAnlan
-
-                errG = self.g_loss.eval({self.real_image: batch_data_x,
-                                         self.y: batch_data_y,
-                                         self.real_patch: batch_data_z})
-
                 counter += 1
-                print("Epoch: [%2d] [%4d/%4d] time: %4.4f,g_loss: %.8f" \
-                      % (epoch, id, batch_iteration,
-                         time.time() - start_time, errG))
 
-                # test the accuracy
-                if np.mod(counter, 1000) == 0:
+                # liuas 2018.5.9 validation
+                if np.mod(counter, 100) == 0:
+                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
+                    print("[Validation].......")
+                    batch_data_x, batch_data_y, batch_data_z = \
+                        shuffle_augment_and_load(self.base_image_num, self.image_dir,
+                                                 self.base_patch_num,
+                                                 self.patch_dir,
+                                                 self.batch_size)
+
+                    batch_data_x = np.array(batch_data_x).astype(np.float32)
+                    batch_data_y = np.array(batch_data_y).astype(np.float32)
+                    batch_data_z = np.array(batch_data_z).astype(np.float32)
+
+                    errD = self.d_loss.eval({self.real_image: batch_data_x,
+                                             self.y: batch_data_y,
+                                             self.real_patch: batch_data_z})
+
+                    errG = self.g_loss.eval({self.real_image: batch_data_x,
+                                             self.y: batch_data_y,
+                                             self.real_patch: batch_data_z})
+
                     acc = self.accuracy.eval({self.real_image: batch_data_x,
-                                         self.y: batch_data_y,
-                                         self.real_patch: batch_data_z})
-                    '''
-                    print(self.predictions.eval({self.real_image: batch_data_x,
-                                         self.y: batch_data_y,
-                                         self.real_patch: batch_data_z}))
-                    print(self.real_label.eval({self.real_image: batch_data_x,
-                                         self.y: batch_data_y,
-                                         self.real_patch: batch_data_z}))
-                    '''
+                                              self.y: batch_data_y,
+                                              self.real_patch: batch_data_z})
+
+                    print("g_loss: %.8f , d_loss: %.8f" % (errG, errD))
+                    print("Accuracy of misclassification: %4.4f" % acc)
+
+                # liuas 2018.5.10 test
+                if np.mod(counter, 1000):
+                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
+                    # accuracy in the test set 2018.5.10 ZhangAnlan
+                    print("[Test].......")
+                    batch_data_x, batch_data_y, batch_data_z = \
+                        shuffle_augment_and_load(self.base_image_num, self.test_img_dir,
+                                                 self.base_patch_num,
+                                                 self.patch_dir,
+                                                 self.batch_size)
+
+                    batch_data_x = np.array(batch_data_x).astype(np.float32)
+                    batch_data_y = np.array(batch_data_y).astype(np.float32)
+                    batch_data_z = np.array(batch_data_z).astype(np.float32)
+
+                    errD = self.d_loss.eval({self.real_image: batch_data_x,
+                                             self.y: batch_data_y,
+                                             self.real_patch: batch_data_z})
+
+                    errG = self.g_loss.eval({self.real_image: batch_data_x,
+                                             self.y: batch_data_y,
+                                             self.real_patch: batch_data_z})
+
+                    acc = self.accuracy.eval({self.real_image: batch_data_x,
+                                              self.y: batch_data_y,
+                                              self.real_patch: batch_data_z})
+
+                    print("g_loss: %.8f , d_loss: %.8f" % (errG, errD))
+                    print("Accuracy of misclassification: %4.4f" % acc)
+
+                    # save patches
                     np.append(acc_history, acc)
-                    plot_acc(acc_history, filename=self.output_dir+'/' +'Accrucy.jpg')
+                    plot_acc(acc_history, filename=self.output_dir + '/' + 'Accrucy.jpg')
 
                     save_patches(self.fake_patch.eval({self.real_image: batch_data_x,
-                                                   self.fake_patch: batch_data_z}),
-                             filename=self.output_dir+'/' + str(time.time()) +'_patches.pkl')
+                                                       self.fake_patch: batch_data_z}),
+                                 filename=self.output_dir + '/' + str(time.time()) + '_patches.pkl')
 
-                # serialize and save image objects
-                if np.mod(counter, 100) == 0:
-                    save_obj(self.fake_image.eval({self.real_image: batch_data_x,
-                                                   self.fake_patch: batch_data_z}),
-                             filename=self.output_dir+'/' + str(time.time()) +'_image.pkl')
 
                 # save model
                 if np.mod(counter, 500) == 0:

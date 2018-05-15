@@ -11,7 +11,7 @@ flags = tf.app.flags
 flags.DEFINE_integer("epoch", 10000, "epoch number to train")
 flags.DEFINE_integer("batch_size", 64, "batch size")
 flags.DEFINE_integer("traindata_size", 10000, "train set size")
-flags.DEFINE_integer("patch_size", 32, "patch size")
+flags.DEFINE_integer("patch_size", 16, "patch size")
 flags.DEFINE_integer("channel", 3, "channel number")
 flags.DEFINE_integer("image_size", 128, "size of image")
 flags.DEFINE_float("alpha", 1.0, "parameter alpha")
@@ -48,6 +48,9 @@ def main(_):
                     target_model_dir= FLAGS.target_model_dir,
                     checkpoint_dir=FLAGS.checkpoint_dir,
                     output_dir=FLAGS.output_dir)
+    # 2018.5.12 ZhangAnlan
+    # test patch
+    # model.test_patch(FLAGS.batch_size, 'test_patch')
 
     if FLAGS.phase == 'train':
         model.train_op()

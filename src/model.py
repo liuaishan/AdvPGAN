@@ -22,6 +22,7 @@ from utils import plot_acc
 from utils import randomly_overlay
 from utils import shuffle_augment_and_load
 from utils import plot_images_and_acc
+from utils import load_image
 from GTSRB_Classifier import GTSRB_Classifier
 from GTSRB_Classifier import GTSRB_Model
 
@@ -69,8 +70,8 @@ class AdvPGAN(object):
         self.rho = 1
         self.d_train_freq = 5
         self.image_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/train.p'
-        self.test_img_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/test.p'
-        self.patch_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/cifar-10/data_batch_1'
+        self.test_img_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/high_resolution_img.p'
+        self.patch_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/cifar-10-resized/data_batch_1'
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
         self.acc_history = [] 
@@ -139,6 +140,23 @@ class AdvPGAN(object):
         select_result = tf.gather(result, select_index)
         # acc = tf.cast(tf.count_nonzero(select_result), tf.float32)/float(num)
         plot_images_and_acc(select_image, select_result, acc, num, filename)
+
+    # Add 2018.5.12 ZhangAnlan
+    # test patch
+    # requires: num is a square number
+    # modifies: none
+    # effects: save the plot patches to filename_ori.png and filename_gen.png
+    def test_patch(self, num, filename):
+        if self.load(self.checkpoint_dir):
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+            exit()
+        patch, label = load_image(self.batch_size, self.patch_dir, 10)
+        fake_patch = self.fake_patch.eval({self.real_patch: patch})
+        save_patches(patch, self.output_dir + '/' + filename + '_ori.png')
+        save_patches(fake_patch, self.output_dir + '/' + filename + '_gen.png')
+        exit()
 
     # naive discriminator in GAN
     # using for adversarial training
@@ -357,7 +375,7 @@ class AdvPGAN(object):
                     print("Accuracy of misclassification: %4.4f" % acc)
 
                 # liuas 2018.5.10 test
-                if np.mod(counter, 1000):
+                if np.mod(counter, 1000) == 0:
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
 
                     # accuracy in the test set 2018.5.10 ZhangAnlan

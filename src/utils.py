@@ -142,6 +142,34 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
             result_patch.append(patch_set[random.randint(0, patch_num - 1)])
         return result_img,result_img_label,result_patch
 
+# TV, distance between a pixel and its adjacent 2 pixels.
+# In order to make patch more 'smooth'
+# warning: be ware of 'inf'
+def TV(patch, patch_size, batch_size):
+    if not batch_size == patch.shape[0]:
+        return None
+
+    # TV for single image
+    def single_image_TV(patch, patch_size):
+        result = tf.Variable(tf.zeros([1, patch_size - 1, 3]))
+        slice_result = tf.assign(result, patch[0: 1, 1:, 0: 3])
+        for iter in range(1, patch_size - 1):
+            temp = tf.assign(result,tf.add(tf.subtract(patch[iter:iter + 1, 1:, 0: 3], patch[iter:iter + 1, 0:-1, 0: 3]),
+                                           tf.subtract(patch[iter:iter + 1, 0:-1, 0: 3],patch[iter + 1:iter + 2, 0:-1, 0: 3])))
+            slice_result = tf.concat([slice_result, temp], 0)
+
+            return slice_result
+
+    batch_image = patch[0]
+    batch_image = single_image_TV(batch_image, patch_size)
+    batch_image = tf.expand_dims(batch_image, 0)
+    for iter in range(1, batch_size):
+        temp = single_image_TV(patch[iter], patch_size)
+        temp = tf.expand_dims(temp, 0)
+        batch_image = tf.concat([batch_image, temp], 0)
+
+    return tf.nn.l2_loss(batch_image)
+
 # save tensor
 def save_obj(tensor, filename):
     tensor = np.asarray(tensor).astype(np.float32)

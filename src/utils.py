@@ -80,7 +80,6 @@ def load_image( num, file_path, N_classes, encode='latin1'):
     # the names of the keys should be unified as 'data', 'labels'
     # todo Zhanganlan
     # to be removed! liuas test!!!!!!!!
-    # Modify 2018.5.11 ZhangAnlan
     '''
     if str(file_path).endswith("train.p") or str(file_path).endswith("test.p"):
         temp_image = data['features']

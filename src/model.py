@@ -250,10 +250,19 @@ class AdvPGAN(object):
     def train_op(self):
 
         # liuas 2018.5.9 trick: using Adam for G, SGD for D
-        d_opt = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate). \
-            minimize(self.d_loss, var_list=self.d_vars)
-        g_opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate). \
-            minimize(self.g_loss, var_list=self.g_vars)
+        # d_opt = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate). \
+        #    minimize(self.d_loss, var_list=self.d_vars)
+        # g_opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate). \
+        #    minimize(self.g_loss, var_list=self.g_vars)
+
+        # liuas 2018.5.16 separate minimize() into 3 steps to monitor the gradient
+        d_raw_opt = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
+        d_gvs = d_raw_opt.compute_gradients(self.d_loss, var_list=self.d_vars)
+        d_opt = d_raw_opt.apply_gradients(d_gvs)
+
+        g_raw_opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        g_gvs = g_raw_opt.compute_gradients(self.g_loss, var_list=self.g_vars)
+        g_opt = g_raw_opt.apply_gradients(g_gvs)
 
         ''' test by ZhangAnlan, the result show that the variables of GTSRB are included in the space of global variables
         for var in tf.global_variables():
@@ -373,6 +382,21 @@ class AdvPGAN(object):
                                          self.real_patch: batch_data_z}))
                     '''
                     print("Accuracy of misclassification: %4.4f" % acc)
+
+                    # here, we have to check the gradients to avoid vanish or explosion
+                    print("[Gradients of G].......")
+                    for grad, var in g_gvs:
+                        print(var.name)
+                        print(grad.eval({self.real_image: batch_data_x,
+                                              self.y: batch_data_y,
+                                              self.real_patch: batch_data_z}))
+
+                    print("[Gradients of D].......")
+                    for grad, var in d_gvs:
+                        print(var.name)
+                        print(grad.eval({self.real_image: batch_data_x,
+                                         self.y: batch_data_y,
+                                         self.real_patch: batch_data_z}))
 
                 # liuas 2018.5.10 test
                 if np.mod(counter, 1000) == 0:

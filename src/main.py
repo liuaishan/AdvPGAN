@@ -50,7 +50,7 @@ def main(_):
                     output_dir=FLAGS.output_dir)
     # 2018.5.12 ZhangAnlan
     # test patch
-    # model.test_patch(FLAGS.batch_size, 'test_patch')
+    # model.test_patch()
 
     if FLAGS.phase == 'train':
         model.train_op()

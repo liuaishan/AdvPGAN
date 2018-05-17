@@ -141,23 +141,6 @@ class AdvPGAN(object):
         # acc = tf.cast(tf.count_nonzero(select_result), tf.float32)/float(num)
         plot_images_and_acc(select_image, select_result, acc, num, filename)
 
-    # Add 2018.5.12 ZhangAnlan
-    # test patch
-    # requires: num is a square number
-    # modifies: none
-    # effects: save the plot patches to filename_ori.png and filename_gen.png
-    def test_patch(self, num, filename):
-        if self.load(self.checkpoint_dir):
-            print(" [*] Load SUCCESS")
-        else:
-            print(" [!] Load failed...")
-            exit()
-        patch, label = load_image(self.batch_size, self.patch_dir, 10)
-        fake_patch = self.fake_patch.eval({self.real_patch: patch})
-        save_patches(patch, self.output_dir + '/' + filename + '_ori.png')
-        save_patches(fake_patch, self.output_dir + '/' + filename + '_gen.png')
-        exit()
-
     # naive discriminator in GAN
     # using for adversarial training
     def naive_discriminator(self, image, y = None, reuse = False):
@@ -480,6 +463,46 @@ class AdvPGAN(object):
             return True
         else:
             return False
+
+    # Add 2018.5.12 ZhangAnlan
+    # update 2018.5.15 ZhangAnlan
+    # test patch
+    # requires: none
+    # modifies: none
+    # effects: save the plot patches to filename_ori.png and filename_gen.png
+    def test_patch(self):
+        if self.load(self.checkpoint_dir):
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+            exit()
+
+        restore_vars = [var for var in tf.global_variables() if var.name.startswith('GTSRB')]
+        saver = tf.train.Saver(restore_vars)
+        saver.restore(sess=self.sess, save_path=self.target_model_dir)
+
+        for i in range(0, 20):
+            batch_data_x, batch_data_y, batch_data_z = \
+                shuffle_augment_and_load(self.batch_size, self.test_img_dir, self.batch_size,
+                                         self.patch_dir, self.batch_size)
+
+            batch_data_x = np.array(batch_data_x).astype(np.float32)
+            batch_data_y = np.array(batch_data_y).astype(np.float32)
+            batch_data_z = np.array(batch_data_z).astype(np.float32)
+
+            real_patch, fake_patch, fake_image, predictions, accuracy = \
+                self.sess.run([self.real_patch, self.fake_patch, self.fake_image, self.predictions, self.accuracy],
+                              feed_dict={self.real_image: batch_data_x,
+                                         self.y: batch_data_y,
+                                         self.real_patch: batch_data_z})
+
+            self.show_images_and_acc(fake_image, predictions,
+                                     accuracy, 9, '../test/fake_image_with_patch_' + str(i) + '.png')
+
+            save_patches(real_patch, '../test/patch_ori_'+ str(i) + '.png')
+            ave_patches(fake_patch, '../test/patch_gen_'+ str(i) + '.png')
+
+        exit()
 
 
 

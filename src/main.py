@@ -55,7 +55,7 @@ def main(_):
     if FLAGS.phase == 'train':
         model.train_op()
     else:
-        model.train_op()
+        model.test_op()
     sess.close()
 
 if __name__ == '__main__':

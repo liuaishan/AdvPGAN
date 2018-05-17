@@ -445,6 +445,14 @@ class AdvPGAN(object):
                 if np.mod(counter, 500) == 0:
                     self.save(self.checkpoint_dir, counter)
 
+    # test Generator
+    def test_op(self):
+        if not self.load(self.checkpoint_dir):
+            print("Failed loading model")
+            return
+        # todo test with test set
+        # todo show accuracy of image with gen_patch, input_patch, gen_patch, gen_patch - input_patch
+
     # save model
     def save(self, checkpoint_dir, step):
         model_name = "AdvPGAN.model"

@@ -500,7 +500,7 @@ class AdvPGAN(object):
                                      accuracy, 9, '../test/fake_image_with_patch_' + str(i) + '.png')
 
             save_patches(real_patch, '../test/patch_ori_'+ str(i) + '.png')
-            ave_patches(fake_patch, '../test/patch_gen_'+ str(i) + '.png')
+            save_patches(fake_patch, '../test/patch_gen_'+ str(i) + '.png')
 
         exit()
 

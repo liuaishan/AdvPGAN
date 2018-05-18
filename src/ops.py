@@ -12,6 +12,10 @@ def batch_norm(x, momentum = 0.95, epsilon = 1e-5, name = "batch_norm"):
     return tf.contrib.layers.batch_norm(x, decay=momentum, updates_collections=None, epsilon=epsilon,
                                         scale=True, scope=name)
 
+# layer normalization
+def layer_norm(x, name = "layer_norm"):
+    return tf.contrib.layers.layer_norm(x, scale=True, scope=name)
+
 def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
     shape = input_.get_shape().as_list()
 

@@ -228,7 +228,6 @@ def plot_acc(acc, filename):
 # show image with patch and accuracy
 def plot_images_and_acc(image, result, acc, num, filename):
     size = int(math.ceil(math.sqrt(num)))
-    # acc = tf.cast(tf.count_nonzero(result), tf.float32)/float(num)
     fig = plt.figure(figsize=(5,5))
     fig.suptitle('Accuracy of misclassification: %4.4f' % acc, verticalalignment='top')
     for i in range(size):
@@ -242,6 +241,6 @@ def plot_images_and_acc(image, result, acc, num, filename):
                 if(result[i*size+j]!=0):
                     p.set_title("Wrong", fontsize=8)
                 else:
-                    p.set_title("Right")    
+                    p.set_title("Right", fontsize=8)    
     # plt.title('Accuracy of misclassification: %4.4f' % acc)    
     fig.savefig(filename, dpi=200)

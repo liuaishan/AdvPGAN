@@ -69,9 +69,9 @@ class AdvPGAN(object):
         self.output_dir = output_dir
         self.rho = 1
         self.d_train_freq = 5
-        self.image_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/train.p'
-        self.test_img_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/TrafficSignData/high_resolution_img.p'
-        self.patch_dir = '/home/dsg/liuas/AnlanZhang/GTSRB/cifar-10-resized/data_batch_1'
+        self.image_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/train.p'
+        self.test_img_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/high_resolution_img.p'
+        self.patch_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/cifar-10-resized/data_batch_1'
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
         self.acc_history = [] 

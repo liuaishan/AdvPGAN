@@ -14,6 +14,7 @@ from ops import _residual_block
 from ops import _conv_tranpose_layer
 from ops import lrelu
 from ops import batch_norm
+from ops import layer_norm
 from ops import linear
 from ops import conv2d
 from utils import save_obj
@@ -72,6 +73,7 @@ class AdvPGAN(object):
         self.image_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/train.p'
         self.test_img_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/high_resolution_img.p'
         self.patch_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/cifar-10-resized/data_batch_1'
+        self.test_patch_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/cifar-10-resized/data_batch_2'
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
         self.acc_history = [] 
@@ -119,7 +121,7 @@ class AdvPGAN(object):
         # here, we call CNN model for GTSRB
         # return GTSRB_Classifier(self.target_model_dir, image)
         # Modify by ZhangAnlan, just build the model of GTSRB, do not restore variables
-        fc_layer3, labels_pred, _ = GTSRB_Model(features=image, keep_prob=1.0)
+        fc_layer3, labels_pred, _ = GTSRB_Model(features=image, keep_prob=1.0, reuse=reuse)
         return fc_layer3, labels_pred
 
     # pad the adversarial patch on image
@@ -133,12 +135,21 @@ class AdvPGAN(object):
         return patched_image
 
     # show patched images and accuracy
-    def show_images_and_acc(self, image, predictions, acc, num, filename):
+    def show_images_and_acc(self, image, predict_label, real_label, num, filename):
         select_index = np.random.choice(np.arange(int(self.batch_size)), size=num, replace=False)
         select_image = tf.gather(image, select_index)
-        result = tf.not_equal(predictions, self.real_label)
-        select_result = tf.gather(result, select_index)
-        # acc = tf.cast(tf.count_nonzero(select_result), tf.float32)/float(num)
+        # print(predict_label - real_label)
+        result = abs(predict_label - real_label)
+        select_result = np.take(result, select_index)
+        # print(select_result)
+        select_result[select_result>0] = 1
+        # print(select_result)
+        wrong_num = 0
+        for i in range(num):
+            if select_result[i]!=0:
+                wrong_num += 1
+        # print(wrong_num)
+        acc = float(wrong_num) / float(num)
         plot_images_and_acc(select_image, select_result, acc, num, filename)
 
     # naive discriminator in GAN
@@ -154,11 +165,11 @@ class AdvPGAN(object):
 
             h0 = lrelu(conv2d(image,  self.df_dim, name='adv_d_h0_conv'))
             # h0 is (128 x 128 x self.df_dim)
-            h1 = lrelu(batch_norm((conv2d(h0, self.df_dim * 2, name='adv_d_h1_conv')), name="adv_d_bn1"))
+            h1 = lrelu(layer_norm((conv2d(h0, self.df_dim * 2, name='adv_d_h1_conv')), name="adv_d_ln1"))
             # h1 is (64 x 64 x self.df_dim*2)
-            h2 = lrelu(batch_norm(conv2d(h1, self.df_dim * 4, name='adv_d_h2_conv'), name="adv_d_bn2"))
+            h2 = lrelu(layer_norm(conv2d(h1, self.df_dim * 4, name='adv_d_h2_conv'), name="adv_d_ln2"))
             # h2 is (32x 32 x self.df_dim*4)
-            h3 = lrelu(batch_norm(conv2d(h2, self.df_dim * 8, d_h=1, d_w=1, name='adv_d_h3_conv'), name="adv_d_bn3"))
+            h3 = lrelu(layer_norm(conv2d(h2, self.df_dim * 8, d_h=1, d_w=1, name='adv_d_h3_conv'), name="adv_d_ln3"))
             # h3 is (16 x 16 x self.df_dim*8)
             h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'adv_d_h3_lin')
 
@@ -382,7 +393,7 @@ class AdvPGAN(object):
                                          self.real_patch: batch_data_z}))
 
                 # liuas 2018.5.10 test
-                if np.mod(counter, 1000) == 0:
+                if np.mod(counter, 2) == 0:
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
 
                     # accuracy in the test set 2018.5.10 ZhangAnlan
@@ -396,45 +407,52 @@ class AdvPGAN(object):
                     batch_data_y = np.array(batch_data_y).astype(np.float32)
                     batch_data_z = np.array(batch_data_z).astype(np.float32)
 
-                    errD = self.d_loss.eval({self.real_image: batch_data_x,
-                                             self.y: batch_data_y,
-                                             self.real_patch: batch_data_z})
-
-                    errG = self.g_loss.eval({self.real_image: batch_data_x,
-                                             self.y: batch_data_y,
-                                             self.real_patch: batch_data_z})
-
-                    acc = self.accuracy.eval({self.real_image: batch_data_x,
-                                              self.y: batch_data_y,
-                                              self.real_patch: batch_data_z})
+                    # errD = self.d_loss.eval({self.real_image: batch_data_x,
+                    #                          self.y: batch_data_y,
+                    #                          self.real_patch: batch_data_z})
+                    # 
+                    # errG = self.g_loss.eval({self.real_image: batch_data_x,
+                    #                          self.y: batch_data_y,
+                    #                          self.real_patch: batch_data_z})
+                    # 
+                    # acc = self.accuracy.eval({self.real_image: batch_data_x,
+                    #                           self.y: batch_data_y,
+                    #                           self.real_patch: batch_data_z})
+                    errD, errG, acc, fake_image, predictions, real_label = \
+                        self.sess.run([self.d_loss, self.g_loss, self.accuracy, self.fake_image, self.predictions, self.real_label],
+                                      feed_dict={self.real_image: batch_data_x,
+                                                 self.y: batch_data_y,
+                                                 self.real_patch: batch_data_z})     
                     print("g_loss: %.8f , d_loss: %.8f" % (errG, errD))
                     print("Accuracy of misclassification: %4.4f" % acc)
 
                     # plot accuracy
                     self.acc_history.append(float(acc))
                     plot_acc(self.acc_history, filename=self.output_dir+'/' +'Accrucy.png')
+
                     # save patches
                     save_patches(self.fake_patch.eval({self.real_image: batch_data_x,
-                                                   self.fake_patch: batch_data_z}),
+                                                 self.y: batch_data_y,
+                                                 self.real_patch: batch_data_z}),
                              filename=self.output_dir+'/' + str(time.time()) +'_fake_patches.png')
                     # show images and acc
-                    self.show_images_and_acc(self.fake_image.eval({self.real_image: batch_data_x,
-                                                   self.fake_patch: batch_data_z}),
-                             self.predictions.eval({self.real_image: batch_data_x,
-                                                   self.fake_patch: batch_data_z}),
-                             acc, 9, filename=self.output_dir+'/' + str(time.time()) +'_fake_images.png')
+                    self.show_images_and_acc(fake_image, predictions, real_label, num=9,
+                                             filename=self.output_dir+'/' + str(time.time()) +'_fake_images.png')
 
                 # save model
-                if np.mod(counter, 500) == 0:
+                if np.mod(counter, 2) == 0:
+                    print("Saving model")
                     self.save(self.checkpoint_dir, counter)
 
     # test Generator
     def test_op(self):
-        if not self.load(self.checkpoint_dir):
-            print("Failed loading model")
-            return
-        # todo test with test set
-        # todo show accuracy of image with gen_patch, input_patch, gen_patch, gen_patch - input_patch
+        if self.load(self.checkpoint_dir):
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+            exit()
+        self.test_patch()
+        # todo show accuracy of image with input_patch
 
     # save model
     def save(self, checkpoint_dir, step):
@@ -470,37 +488,51 @@ class AdvPGAN(object):
     # requires: none
     # modifies: none
     # effects: save the plot patches to filename_ori.png and filename_gen.png
+    # update 2018.5.18 FanJiaXin
+    # add: save image_with_gen_patch and patch_dif
+    # todo: let GTSRB model successfully recognizes image_with_ori_patch
     def test_patch(self):
-        if self.load(self.checkpoint_dir):
-            print(" [*] Load SUCCESS")
-        else:
-            print(" [!] Load failed...")
-            exit()
-
         restore_vars = [var for var in tf.global_variables() if var.name.startswith('GTSRB')]
         saver = tf.train.Saver(restore_vars)
         saver.restore(sess=self.sess, save_path=self.target_model_dir)
+        '''
+        image_with_ori_patch = self.pad_patch_on_image(image=self.real_image, patch=self.real_patch)
+        _, ori_prob_f = self.target_model_discriminator(image_with_ori_patch)
+        predictions_ori = tf.argmax(ori_prob_f, 1)
+        '''
 
-        for i in range(0, 20):
+        for i in range(20):
             batch_data_x, batch_data_y, batch_data_z = \
                 shuffle_augment_and_load(self.batch_size, self.test_img_dir, self.batch_size,
-                                         self.patch_dir, self.batch_size)
+                                         self.test_patch_dir, self.batch_size)
 
             batch_data_x = np.array(batch_data_x).astype(np.float32)
             batch_data_y = np.array(batch_data_y).astype(np.float32)
             batch_data_z = np.array(batch_data_z).astype(np.float32)
 
-            real_patch, fake_patch, fake_image, predictions, accuracy = \
-                self.sess.run([self.real_patch, self.fake_patch, self.fake_image, self.predictions, self.accuracy],
+            real_patch, fake_patch, fake_image, predictions, real_label= \
+                self.sess.run([self.real_patch, self.fake_patch, self.fake_image, self.predictions, self.real_label],
                               feed_dict={self.real_image: batch_data_x,
                                          self.y: batch_data_y,
                                          self.real_patch: batch_data_z})
 
-            self.show_images_and_acc(fake_image, predictions,
-                                     accuracy, 9, '../test/fake_image_with_patch_' + str(i) + '.png')
-
+            print("Saving test results: %d / 20." % (i+1))
+            # show images with gen patch and their acc
+            self.show_images_and_acc(fake_image, predictions, real_label, num=9, 
+                                     filename='../test/image_with_gen_patch_' + str(i) + '.png')
+            '''
+            self.show_images_and_acc(image_with_ori_patch.eval({self.real_image: batch_data_x,
+                                          self.real_patch: batch_data_z}), 
+                                     predictions_ori.eval({self.real_image: batch_data_x,
+                                          self.real_patch: batch_data_z}),
+                                     real_label, num=9, 
+                                     filename='../test/image_with_ori_patch_' + str(i) + '.png')
+            '''
+            diff_patch = fake_patch - real_patch
+            # show original patch, generated patch and difference betwween them
             save_patches(real_patch, '../test/patch_ori_'+ str(i) + '.png')
             save_patches(fake_patch, '../test/patch_gen_'+ str(i) + '.png')
+            save_patches(diff_patch, '../test/patch_dif_'+ str(i) + '.png')
 
         exit()
 

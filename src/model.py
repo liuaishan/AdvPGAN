@@ -26,6 +26,7 @@ from utils import plot_images_and_acc
 from utils import load_image
 from GTSRB_Classifier import GTSRB_Classifier
 from GTSRB_Classifier import GTSRB_Model
+from utils import tv_loss
 
 import os
 import time
@@ -47,7 +48,7 @@ class AdvPGAN(object):
     def __init__(self, sess, batch_size=16, image_size=128, patch_size=32,
                  channel=3, alpha=1, beta=1, gamma=1, learning_rate=0.0001,
                  epoch=10000, traindata_size=10000,
-                 base_image_num = 16, base_patch_num = 16,
+                 base_image_num = 16, base_patch_num = 16, tv_weight = 0.0001,
                  target_model_dir=None, checkpoint_dir=None,output_dir=None):
 
         # hyperparameter
@@ -69,6 +70,7 @@ class AdvPGAN(object):
         self.target_model_dir=target_model_dir
         self.checkpoint_dir = checkpoint_dir
         self.output_dir = output_dir
+	self.tv_weight = tv_weight
         self.rho = 1
         self.d_train_freq = 5
         self.image_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/train.p'
@@ -77,7 +79,7 @@ class AdvPGAN(object):
         self.test_patch_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/cifar-10-resized/data_batch_2'
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
-        self.acc_history = [] 
+        self.acc_history = []
 
         self.build_model()
 
@@ -210,8 +212,8 @@ class AdvPGAN(object):
                                                                                  labels=tf.ones_like(self.fake_logits_d)))
 
         # 2.patch loss
-        # todo TV(), try L1 norm etc.
-        self.patch_loss = tf.nn.l2_loss(self.real_patch - self.fake_patch)
+        # pay attention to the first parameter of tv_loss()
+        self.patch_loss = tf.nn.l2_loss(self.real_patch - self.fake_patch) + tv_loss(self.fake_patch - self.real_patch, self.tv_weight)
 
         # 3.adversarial example loss
         self.ae_loss = -tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.fake_logits_f, labels=self.y)) \
@@ -308,7 +310,7 @@ class AdvPGAN(object):
 
         start_time = time.time()
         counter = 1
-        
+
 
         if self.load(self.checkpoint_dir):
             print(" [*] Load SUCCESS")
@@ -445,11 +447,11 @@ class AdvPGAN(object):
                     # errD = self.d_loss.eval({self.real_image: batch_data_x,
                     #                          self.y: batch_data_y,
                     #                          self.real_patch: batch_data_z})
-                    # 
+                    #
                     # errG = self.g_loss.eval({self.real_image: batch_data_x,
                     #                          self.y: batch_data_y,
                     #                          self.real_patch: batch_data_z})
-                    # 
+                    #
                     # acc = self.accuracy.eval({self.real_image: batch_data_x,
                     #                           self.y: batch_data_y,
                     #                           self.real_patch: batch_data_z})
@@ -457,7 +459,7 @@ class AdvPGAN(object):
                         self.sess.run([self.d_loss, self.g_loss, self.accuracy, self.fake_image, self.predictions, self.real_label],
                                       feed_dict={self.real_image: batch_data_x,
                                                  self.y: batch_data_y,
-                                                 self.real_patch: batch_data_z})     
+                                                 self.real_patch: batch_data_z})
                     print("g_loss: %.8f , d_loss: %.8f" % (errG, errD))
                     print("Accuracy of misclassification: %4.4f" % acc)
 
@@ -553,17 +555,19 @@ class AdvPGAN(object):
 
             print("Saving test results: %d / 20." % (i+1))
             # show images with gen patch and their acc
-            self.show_images_and_acc(fake_image, predictions, real_label, num=9, 
+            self.show_images_and_acc(fake_image, predictions, real_label, num=9,
                                      filename='../test/image_with_gen_patch_' + str(i) + '.png')
             '''
             self.show_images_and_acc(image_with_ori_patch.eval({self.real_image: batch_data_x,
-                                          self.real_patch: batch_data_z}), 
+                                          self.real_patch: batch_data_z}),
                                      predictions_ori.eval({self.real_image: batch_data_x,
                                           self.real_patch: batch_data_z}),
-                                     real_label, num=9, 
+                                     real_label, num=9,
                                      filename='../test/image_with_ori_patch_' + str(i) + '.png')
             '''
-            diff_patch = fake_patch - real_patch
+
+            # Avoid negative value
+            diff_patch = tf.abs(fake_patch - real_patch)
             # show original patch, generated patch and difference betwween them
             save_patches(real_patch, '../test/patch_ori_'+ str(i) + '.png')
             save_patches(fake_patch, '../test/patch_gen_'+ str(i) + '.png')

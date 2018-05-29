@@ -9,6 +9,7 @@ import os
 import random
 from sklearn.preprocessing import OneHotEncoder
 from scipy import misc
+from functools import reduce
 import math
 import cv2
 
@@ -145,6 +146,7 @@ def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_s
 # TV, distance between a pixel and its adjacent 2 pixels.
 # In order to make patch more 'smooth'
 # warning: be ware of 'inf'
+# not TESTED!
 def TV(patch, patch_size, batch_size):
     if not batch_size == patch.shape[0]:
         return None
@@ -169,6 +171,22 @@ def TV(patch, patch_size, batch_size):
         batch_image = tf.concat([batch_image, temp], 0)
 
     return tf.nn.l2_loss(batch_image)
+
+
+# total variance loss
+def tv_loss(image, tv_weight):
+    # total variation denoising
+    shape = tuple(image.get_shape().as_list())
+    tv_y_size = _tensor_size(image[:,1:,:,:])
+    tv_x_size = _tensor_size(image[:,:,1:,:])
+    tv_loss = tv_weight * 2 * ((tf.nn.l2_loss(image[:,1:,:,:] - image[:,:shape[1]-1,:,:]) / tv_y_size) +
+            (tf.nn.l2_loss(image[:,:,1:,:] - image[:,:,:shape[2]-1,:]) / tv_x_size))
+
+    return tv_loss
+
+def _tensor_size(tensor):
+    from operator import mul
+    return reduce(mul, (d.value for d in tensor.get_shape()), 1)
 
 # save tensor
 def save_obj(tensor, filename):
@@ -223,7 +241,7 @@ def plot_acc(acc, filename):
     plt.plot(acc)
     plt.ylabel('Accrucy')
     plt.savefig(filename, dpi=200)
-    plt.close() 
+    plt.close()
 
 # show image with patch and accuracy
 def plot_images_and_acc(image, result, acc, num, filename):
@@ -241,6 +259,6 @@ def plot_images_and_acc(image, result, acc, num, filename):
                 if(result[i*size+j]!=0):
                     p.set_title("Wrong", fontsize=8)
                 else:
-                    p.set_title("Right", fontsize=8)    
-    # plt.title('Accuracy of misclassification: %4.4f' % acc)    
+                    p.set_title("Right", fontsize=8)
+    # plt.title('Accuracy of misclassification: %4.4f' % acc)
     fig.savefig(filename, dpi=200)

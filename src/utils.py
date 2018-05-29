@@ -234,7 +234,7 @@ def plot_images_and_acc(image, result, acc, num, filename):
         for j in range(size):
             if(i*size+j < num):
                 temp = image[i*size+j]
-                p = fig.add_subplot(size,size,i*size+j)
+                p = fig.add_subplot(size,size,i*size+j+1)
                 # p = plt.subplot(size,size,i*size+j)
                 p.imshow(temp.eval())
                 p.axis('off')

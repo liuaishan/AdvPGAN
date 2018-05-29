@@ -254,7 +254,22 @@ class AdvPGAN(object):
         # initialize a saver
         self.saver = tf.train.Saver()
 
-       
+    # print list
+    def print_each_list(self, list_name):
+        for ele in list_name:
+            if isinstance(ele, list):
+                self.print_each_list(ele)
+            else:
+                print(ele)
+
+    def print_nan(self, list_name):
+        for ele in list_name:
+            if isinstance(ele, list):
+                self.print_nan(ele)
+            else:
+                if math.isinf(ele) or math.isnan(ele):
+                    print(ele)
+
     # train cGAN model
     def train_op(self):
 
@@ -395,20 +410,25 @@ class AdvPGAN(object):
                     # here, we have to check the gradients to avoid vanish or explosion
                     print("[Gradients of G].......")
                     for grad, var in g_gvs:
-                        print(var.name)
-                        print(grad.eval({self.real_image: batch_data_x,
-                                              self.y: batch_data_y,
-                                              self.real_patch: batch_data_z}))
+                         print(var.name)
+                         g_list = grad.eval({self.real_image: batch_data_x,
+                                               self.y: batch_data_y,
+                                               self.real_patch: batch_data_z})
+                         g_list = g_list.tolist()
+
+                         self.print_nan(g_list)
 
                     print("[Gradients of D].......")
                     for grad, var in d_gvs:
                         print(var.name)
-                        print(grad.eval({self.real_image: batch_data_x,
-                                         self.y: batch_data_y,
-                                         self.real_patch: batch_data_z}))
+                        g_list = grad.eval({self.real_image: batch_data_x,
+                                   self.y: batch_data_y,
+                                   self.real_patch: batch_data_z})
+                        g_list = g_list.tolist()
+                        self.print_nan(g_list)
 
                 # liuas 2018.5.10 test
-                if np.mod(counter, 2) == 0:
+                if np.mod(counter, 1000) == 0:
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
 
                     # accuracy in the test set 2018.5.10 ZhangAnlan
@@ -455,7 +475,7 @@ class AdvPGAN(object):
                                              filename=self.output_dir+'/' + str(time.time()) +'_fake_images.png')
 
                 # save model
-                if np.mod(counter, 2) == 0:
+                if np.mod(counter, 500) == 0:
                     print("Saving model")
                     self.save(self.checkpoint_dir, counter)
 

@@ -125,10 +125,12 @@ def get_current_pair(batch_size, pair_set, last_iter):
     current_pair = []
     if last_iter + batch_size < len(pair_set):
         current_pair += pair_set[last_iter: last_iter+batch_size]
+        last_iter = last_iter + batch_size
     else:
         current_pair += pair_set[last_iter: ]
-        current_pair += pair_set[0: len(pair_set)-last_iter]
-    last_iter = last_iter + batch_size
+        current_pair += pair_set[0: batch_size - len(pair_set) + last_iter]
+        last_iter = batch_size- len(pair_set)+last_iter
+    #last_iter = last_iter + batch_size
     return current_pair, last_iter
 
 

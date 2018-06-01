@@ -13,6 +13,8 @@ from functools import reduce
 import math
 import cv2
 
+current_iteration = 0
+
 # change list of labels to one hot encoder
 # e.g. [0,1,2] --> [[1,0,0],[0,1,0],[0,0,1]]
 def OHE_labels(Y_tr, N_classes):
@@ -36,7 +38,7 @@ def pre_process_image(image):
     image = image/255.
     return image
 
-def randomly_overlay(image, patch):
+def randomly_overlay(image, patch, if_random=False):
     # randomly overlay the image with patch
     patch_mask = np.ones([patch.shape[0],patch.shape[0],3], dtype=np.float32)
     patch_mask = tf.convert_to_tensor(patch_mask)
@@ -44,8 +46,16 @@ def randomly_overlay(image, patch):
     patch = tf.image.resize_image_with_crop_or_pad(patch, int(patch_size), int(patch_size))
     patch_mask = tf.image.resize_image_with_crop_or_pad(patch_mask, int(patch_size), int(patch_size))
 
+    if if_random==True:
+        angle = np.random.uniform(low=-180.0, high=180.0)
+        location_x = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
+        location_y = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
+    else:
+        angle = 0
+        location_x = 32
+        location_y = 32
+
     # rotate the patch and mask with the same angle
-    angle = np.random.uniform(low=-180.0, high=180.0)
     def random_rotate_image_func(image, angle):
         return misc.imrotate(image, angle, 'bicubic')
     patch_rotate = tf.py_func(random_rotate_image_func, [patch, angle], tf.uint8)
@@ -54,10 +64,6 @@ def randomly_overlay(image, patch):
     patch_mask = tf.image.convert_image_dtype(patch_mask, tf.float32)
 
     # move the patch and mask to the sama location
-    location_x = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
-    location_y = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
-    # location_x = 0
-    # location_y = 0
     patch_rotate = tf.image.pad_to_bounding_box(patch_rotate, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
     patch_mask = tf.image.pad_to_bounding_box(patch_mask, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
 
@@ -74,6 +80,7 @@ def randomly_overlay(image, patch):
 def load_image( num, file_path, N_classes, encode='latin1'):
     image = []
     label = []
+    patch = []
     with open(file_path, 'rb') as f:
         # cifar-10 need use 'latin1'
         data = pickle.load(f) # if use python2.7 there should be no argument 'encoding'
@@ -93,7 +100,9 @@ def load_image( num, file_path, N_classes, encode='latin1'):
 
     while(len(label) < num):
         # pick up randomly
+        # liuas test!!
         iter = random.randint(0, len(temp_label) - 1)
+        #iter = random.randint(0, 1100)
         image.append(temp_image[iter])
         label.append(temp_label[iter])
         # print(data['labels'][iter])
@@ -102,6 +111,59 @@ def load_image( num, file_path, N_classes, encode='latin1'):
     image = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)
 
     return image, label
+
+def get_initial_image_patch_pair(image_num, patch_num):
+    result_img = []
+
+    # all combinations for images and patches
+    for i in range(image_num):
+        for j in range(patch_num):
+            result_img.append([i,j])
+    return result_img
+
+def get_current_pair(batch_size, pair_set, last_iter):
+    current_pair = []
+    if last_iter + batch_size < len(pair_set):
+        current_pair += pair_set[last_iter: last_iter+batch_size]
+    else:
+        current_pair += pair_set[last_iter: ]
+        current_pair += pair_set[0: len(pair_set)-last_iter]
+    last_iter = last_iter + batch_size
+    return current_pair, last_iter
+
+
+def load_data_in_pair( pair_set, num, image_path, patch_path, image_classes, encode='latin1'):
+    image = []
+    label = []
+    patch = []
+    global current_iteration
+    with open(image_path, 'rb') as f:
+        # cifar-10 need use 'latin1'
+        data_img = pickle.load(f) # if use python2.7 there should be no argument 'encoding'
+
+    with open(patch_path, 'rb') as f:
+        # cifar-10 need use 'latin1'
+        data_pat = pickle.load(f) # if use python2.7 there should be no argument 'encoding'
+
+
+    temp_image = data_img['data']
+    temp_label = OHE_labels(data_img['labels'], image_classes)
+
+    temp_patch = data_pat['data']
+
+    current_pair_set, current_iteration = get_current_pair(num, pair_set, current_iteration)
+    print(current_iteration)
+
+    for i in range(num):
+        image.append(temp_image[current_pair_set[i][0]])
+        label.append(temp_label[current_pair_set[i][0]])
+        patch.append(temp_patch[current_pair_set[i][1]])
+
+    # further tests are needed for ZhangAnlan
+    image = np.array([pre_process_image(image[i]) for i in range(len(image))], dtype=np.float32)
+    patch = np.array([pre_process_image(patch[i]) for i in range(len(patch))], dtype=np.float32)
+
+    return image, label, patch
 
 # load and augment patch, image with different combinations
 def shuffle_augment_and_load(image_num, image_dir, patch_num, patch_dir, batch_size):

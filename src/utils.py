@@ -12,6 +12,7 @@ from scipy import misc
 from functools import reduce
 import math
 import cv2
+from skimage import transform
 
 current_iteration = 0
 
@@ -31,11 +32,12 @@ def pre_process_image(image):
     # error occurs when cifar-10 is te
     # solve in 2018.5.11 ZhangAnlan
     # the data type of image that used in equalizeHist must be uint8
-    image[:,:,0] = cv2.equalizeHist(image[:,:,0])
-    image[:,:,1] = cv2.equalizeHist(image[:,:,1])
-    image[:,:,2] = cv2.equalizeHist(image[:,:,2])
+    #image[:,:,0] = cv2.equalizeHist(image[:,:,0])
+    #image[:,:,1] = cv2.equalizeHist(image[:,:,1])
+    #image[:,:,2] = cv2.equalizeHist(image[:,:,2])
     # image = image/255. - .5
     image = image/255.
+    #image = image / 127.5 - 1
     return image
 
 def randomly_overlay(image, patch, if_random=False):
@@ -52,8 +54,8 @@ def randomly_overlay(image, patch, if_random=False):
         location_y = int(np.random.uniform(low=0, high=int(image.shape[0])-patch_size))
     else:
         angle = 0
-        location_x = 32
-        location_y = 32
+        location_x = 52
+        location_y = 16
 
     # rotate the patch and mask with the same angle
     def random_rotate_image_func(image, angle):
@@ -154,7 +156,7 @@ def load_data_in_pair( pair_set, num, image_path, patch_path, image_classes, enc
     temp_patch = data_pat['data']
 
     current_pair_set, current_iteration = get_current_pair(num, pair_set, current_iteration)
-    print(current_iteration)
+    #print(current_iteration)
 
     for i in range(num):
         image.append(temp_image[current_pair_set[i][0]])
@@ -293,6 +295,7 @@ def load_obj(filename):
 
 def _convert(image):
     return (image * 255.0).astype(np.uint8)
+    #return ((image + 1.0) * 127.5).astype(np.uint8)
 
 # show image
 def show_image(image):

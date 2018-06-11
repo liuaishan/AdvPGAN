@@ -86,7 +86,7 @@ class AdvPGAN(object):
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
         self.acc_history = []
-        self.delta = 0.002
+        self.delta = 0.0
 
         self.build_model()
 

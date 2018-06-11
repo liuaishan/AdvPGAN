@@ -248,7 +248,8 @@ class AdvPGAN(object):
         self.fake_logits_d, self.fake_prob_d = self.naive_discriminator(self.fake_image)
         # real image result from naive D
         self.real_logits_d, self.real_prob_d = self.naive_discriminator(self.real_image, reuse=True)
-
+	
+	# targeted attack
         self.target = 40
         self.target_hat = tf.one_hot(self.target, self.class_num)
         self.target_hat_batch = tf.expand_dims(self.target_hat, 0)
@@ -272,8 +273,9 @@ class AdvPGAN(object):
 
         # 3.adversarial example loss
         self.ae_loss = -tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.fake_logits_f, labels=self.y))#+ self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
-
-        self.temp_loss = self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
+	
+	# 4.similarity loss between patch and padded place on traffic sign
+        self.pad_sim_loss = self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
 
         #self.ae_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.fake_logits_f, labels=self.target_hat_batch))+ self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
         # 4.gradient penalty
@@ -291,7 +293,7 @@ class AdvPGAN(object):
         self.gradient_penalty = self.LAMBDA * tf.reduce_mean((self.slopes - 1.) ** 2)
 
         # overall loss for D and G
-        self.g_loss = self.alpha * self.loss_g_adv + self.beta * self.patch_loss + self.gamma * self.ae_loss + self.delta * self.temp_loss
+        self.g_loss = self.alpha * self.loss_g_adv + self.beta * self.patch_loss + self.gamma * self.ae_loss + self.delta * self.pad_sim_loss
         self.d_loss = self.loss_d_adv + self.gradient_penalty
 
         # accuracy for classification rate of target model
@@ -460,7 +462,7 @@ class AdvPGAN(object):
                                               self.y: val_data_y,
                                               self.real_patch: val_data_z})
 
-                    errTemp = self.temp_loss.eval({self.real_image: val_data_x,
+                    errPadSim = self.pad_sim_loss.eval({self.real_image: val_data_x,
                         self.y: val_data_y,
                         self.real_patch: val_data_z})
 
@@ -472,11 +474,11 @@ class AdvPGAN(object):
                                               self.real_patch: batch_data_z})
                     print("train batch acc: %4.4f" % acc_batch)
 
-                    print("ae_loss: %.8f" %errAE)
+                    print("ae_loss: %.8f" % errAE)
                     
-                    print("temp_loss: %.8f" %errTemp)
+                    print("pad_sim_loss: %.8f" % errPadSim)
 
-                    print("sum_loss: %.8f" %(errAE+errTemp))
+                    print("sum_loss: %.8f" %(errAE + errPadSim))
                     if acc < self.best_acc:
                         self.best_acc = acc
                         print("Saving model.")

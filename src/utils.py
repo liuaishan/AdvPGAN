@@ -55,8 +55,8 @@ def randomly_overlay(image, patch, if_random=False):
     else:
         angle = 0
         location_x = 52
-        location_y = 16
-
+        location_y = 48
+    '''
     # rotate the patch and mask with the same angle
     def random_rotate_image_func(image, angle):
         return misc.imrotate(image, angle, 'bicubic')
@@ -64,7 +64,8 @@ def randomly_overlay(image, patch, if_random=False):
     patch_mask = tf.py_func(random_rotate_image_func, [patch_mask, angle], tf.uint8)
     patch_rotate = tf.image.convert_image_dtype(patch_rotate, tf.float32)
     patch_mask = tf.image.convert_image_dtype(patch_mask, tf.float32)
-
+    '''
+    patch_rotate = patch
     # move the patch and mask to the sama location
     patch_rotate = tf.image.pad_to_bounding_box(patch_rotate, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
     patch_mask = tf.image.pad_to_bounding_box(patch_mask, location_y, location_x, int(image.shape[0]), int(image.shape[0]))
@@ -114,13 +115,17 @@ def load_image( num, file_path, N_classes, encode='latin1'):
 
     return image, label
 
-def get_initial_image_patch_pair(image_num, patch_num):
+def get_initial_image_patch_pair(image_num, patch_num, validate=False):
     result_img = []
 
     # all combinations for images and patches
     for i in range(image_num):
         for j in range(patch_num):
             result_img.append([i,j])
+
+    if not validate:
+        np.random.shuffle(result_img)
+
     return result_img
 
 def get_current_pair(batch_size, pair_set, last_iter):
@@ -132,6 +137,8 @@ def get_current_pair(batch_size, pair_set, last_iter):
         current_pair += pair_set[last_iter: ]
         current_pair += pair_set[0: batch_size - len(pair_set) + last_iter]
         last_iter = batch_size- len(pair_set)+last_iter
+
+    np.random.shuffle(current_pair)
     #last_iter = last_iter + batch_size
     return current_pair, last_iter
 
@@ -278,7 +285,7 @@ def save_patches(patches, filename):
             show_patch = tf.concat([show_patch, row], 0)
         del row
     plt.figure(figsize=(5,5))
-    plt.imshow(show_patch.eval())
+    plt.imshow(_convert(show_patch.eval()))
     plt.axis('off')
     plt.savefig(filename, dpi=200)
     plt.close()
@@ -321,7 +328,7 @@ def plot_images_and_acc(image, result, acc, num, filename):
                 temp = image[i*size+j]
                 p = fig.add_subplot(size,size,i*size+j+1)
                 # p = plt.subplot(size,size,i*size+j)
-                p.imshow(temp.eval())
+                p.imshow(_convert(temp.eval()))
                 p.axis('off')
                 if(result[i*size+j]!=0):
                     p.set_title("Wrong", fontsize=8)

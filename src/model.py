@@ -81,6 +81,8 @@ class AdvPGAN(object):
         self.valid_patch_dir = '/home/zhenxt/zal/GTSRB/quickdraw/validation_aircraft_carrier_r_10_resized_ext.p'
 	self.patch_all_num = 100
 	self.image_all_num = 100
+	self.patch_val_num = 10
+	self.image_val_num = 10
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
         self.acc_history = []
@@ -298,14 +300,7 @@ class AdvPGAN(object):
         self.real_label = tf.argmax(self.y, 1)
         self.accuracy = tf.reduce_mean((tf.cast(tf.equal(self.predictions, self.real_label), tf.float32)))
 
-	self.train_pair_set = get_initial_image_patch_pair(self.image_all_num, self.patch_all_num)
-        print(len(self.train_pair_set))
-        # load target model
-        # restore_vars = [var for var in tf.global_variables() if var.name.startswith('adv_')]
-        # saver = tf.train.Saver(restore_vars)
-        # saver.restore(self.sess, os.path.join(self.data_dir, 'AdvpGAN.ckpt'))
-
-        # get all trainable variables for G and D, respectively
+	# get all trainable variables for G and D, respectively
         t_vars = tf.trainable_variables()
         self.d_vars = [var for var in t_vars if 'adv_d_' in var.name]
         self.g_vars = [var for var in t_vars if 'adv_g_' in var.name]
@@ -387,10 +382,11 @@ class AdvPGAN(object):
         saver = tf.train.Saver(restore_vars)
         saver.restore(sess=self.sess, save_path=self.target_model_dir)
 
-        # liuaishan get validation test
+        # liuaishan get validation set and train set
         #val_data_x, val_data_y, val_data_z = shuffle_augment_and_load(self.base_image_num, self.valid_img_dir, self.base_patch_num, self.valid_patch_dir, self.batch_size)
-        valid_pair_set = get_initial_image_patch_pair(8, 8, True)
-        #print(len(valid_pair_set))
+        self.train_pair_set = get_initial_image_patch_pair(self.image_all_num, self.patch_all_num)
+	valid_pair_set = get_initial_image_patch_pair(self.image_val_num, self.patch_val_num, True)
+	
         val_data_x, val_data_y, val_data_z = load_data_in_pair(valid_pair_set, self.batch_size, self.valid_img_dir,self.valid_patch_dir, self.class_num)
         val_data_x = np.array(val_data_x).astype(np.float32)
         val_data_y = np.array(val_data_y).astype(np.float32)
@@ -398,8 +394,6 @@ class AdvPGAN(object):
 	print(self.sess.run(learning_rate))
 
         for epoch in range(self.epoch):
-	    # more batch_iteration
-		#liuas test!!!
             batch_iteration = self.image_all_num * self.patch_all_num / self.batch_size
 
             for id in range(int(batch_iteration)):
@@ -431,7 +425,9 @@ class AdvPGAN(object):
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
                     print("[Validation].......")
 
-                    print("learning_rate: %.8f" % self.sess.run(learning_rate))
+                    print("learning_rate: %.8f" % self.sess.run(learning_rate)
+			  
+                    # test! Show logits and probs when validating
                     print("[top 3 fake_logits].......")
                     current_fake_logits = self.fake_logits_f.eval({self.real_image: val_data_x, self.real_patch: val_data_z})
                     for i in range(len(current_fake_logits)):
@@ -447,9 +443,6 @@ class AdvPGAN(object):
 			top2 = np.argsort(current_fake_prob[i])[-2]
 			top3 = np.argsort(current_fake_prob[i])[-3]
                         print("%d %.8f %d %.8f %d %.8f" %(top1, current_fake_prob[i][top1], top2, current_fake_prob[i][top2], top3, current_fake_prob[i][top3]))
-                    #print(current_fake_prob)
-                    #print("[real prob].......")
-                    #print(val_data_y)
 
                     errAE = self.ae_loss.eval({self.real_image: val_data_x,
                         self.y: val_data_y,
@@ -490,30 +483,6 @@ class AdvPGAN(object):
                         self.save(self.checkpoint_dir, counter)
                     print("current acc: %.4f, best acc: %.4f" % (acc, self.best_acc))
 		
-                    '''
-                    if self.best_acc < 0.79 and self.learning_rate == 0.0002:
-                        self.learning_rate = 0.0001
-                    if self.best_acc < 0.58 and self.learning_rate == 0.0001:
-                        self.learning_rate = 0.00001
-                    if self.best_acc < 0.42 and self.learning_rate == 0.00001:
-                        self.learning_rate = 0.000001
-
-                    
-                    if self.best_acc < 0.86 and self.learning_rate == 0.0002:
-                        self.learning_rate = 0.0001
-                    if self.best_acc < 0.75 and self.learning_rate == 0.0001:
-                        self.learning_rate = 0.00001
-                    if self.best_acc < 0.65 and self.learning_rate == 0.00001:
-                        self.learning_rate = 0.000001
-                    '''
-                '''
-                # zhanganlan get validation
-                if np.mod(counter, 100) == 0:
-                    val_data_x, val_data_y, val_data_z = shuffle_augment_and_load(self.base_image_num, self.valid_img_dir, self.base_patch_num, self.valid_patch_dir, self.batch_size)
-                    val_data_x = np.array(val_data_x).astype(np.float32)
-                    val_data_y = np.array(val_data_y).astype(np.float32)
-                    val_data_z = np.array(val_data_z).astype(np.float32)
-                '''
                 # liuas 2018.5.10 test
                 if np.mod(counter, 1000) == 0:
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
@@ -529,17 +498,6 @@ class AdvPGAN(object):
                     batch_data_y = np.array(batch_data_y).astype(np.float32)
                     batch_data_z = np.array(batch_data_z).astype(np.float32)
 
-                    # errD = self.d_loss.eval({self.real_image: batch_data_x,
-                    #                          self.y: batch_data_y,
-                    #                          self.real_patch: batch_data_z})
-                    #
-                    # errG = self.g_loss.eval({self.real_image: batch_data_x,
-                    #                          self.y: batch_data_y,
-                    #                          self.real_patch: batch_data_z})
-                    #
-                    # acc = self.accuracy.eval({self.real_image: batch_data_x,
-                    #                           self.y: batch_data_y,
-                    #                           self.real_patch: batch_data_z})
                     errD, errG, acc, fake_image, predictions, real_label = \
                         self.sess.run([self.d_loss, self.g_loss, self.accuracy, self.fake_image, self.predictions, self.real_label],
                                       feed_dict={self.real_image: batch_data_x,
@@ -563,15 +521,6 @@ class AdvPGAN(object):
                                              filename=self.output_dir+'/' + str(time.time()) +'_fake_images.png')
 
                     '''
-
-                # save model
-                #if np.mod(counter, 500) == 0:
-                #    if self.best_acc < self.current_acc or counter == 500:
-                #        print("Saving model.")
-                #        self.save(self.checkpoint_dir, counter)
-                #    else:
-                #        print("Not best model! Dont save.")
-                #        print("current acc: %.4f, best acc: %.4f" % (self.current_acc, self.best_acc))
 
     # test Generator
     def test_op(self):

@@ -15,7 +15,7 @@ flags.DEFINE_integer("patch_size", 16, "patch size")
 flags.DEFINE_integer("channel", 3, "channel number")
 flags.DEFINE_integer("image_size", 128, "size of image")
 flags.DEFINE_float("alpha", 1.0, "parameter alpha")
-flags.DEFINE_float("beta", 0.1, "parameter beta")
+flags.DEFINE_float("beta", 0.002, "parameter beta")
 flags.DEFINE_float("gamma", 1.0, "parameter gamma")
 flags.DEFINE_float("learning_rate", 0.0002, "learning rate")
 flags.DEFINE_float("base_image_num", 8, "base number of image to augment")
@@ -32,9 +32,9 @@ def main(_):
         os.makedirs(FLAGS.checkpoint_dir)
 
     # liuas 2018.5.9 try to avoid abort error
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
-    sess = tf.InteractiveSession(config=tf.ConfigProto(gpu_options=gpu_options))
-    #sess = tf.InteractiveSession()
+    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
+    #sess = tf.InteractiveSession(config=tf.ConfigProto(gpu_options=gpu_options))
+    sess = tf.InteractiveSession()
     #with sess:
     model = AdvPGAN(sess, batch_size=FLAGS.batch_size, image_size=FLAGS.image_size,
                     patch_size=FLAGS.patch_size, channel=FLAGS.channel,

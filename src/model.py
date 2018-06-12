@@ -70,19 +70,19 @@ class AdvPGAN(object):
         self.target_model_dir=target_model_dir
         self.checkpoint_dir = checkpoint_dir
         self.output_dir = output_dir
-	self.tv_weight = tv_weight
+        self.tv_weight = tv_weight
         self.rho = 1
         self.d_train_freq = 1
-        self.image_dir = '/home/zhenxt/zal/GTSRB/data/train_1_100.p'
-        self.test_img_dir = '/home/zhenxt/zal/GTSRB/data/train_0_9_100.p'
-        self.valid_img_dir = '/home/zhenxt/zal/GTSRB/data/validation_img_1_8.p'
-        self.patch_dir = '/home/zhenxt/zal/GTSRB/quickdraw/aircraft_carrier_r_100_resized.p'
-        self.test_patch_dir = '/home/zhenxt/zal/GTSRB/quickdraw/aircraft_carrier_r_100_resized.p'
-        self.valid_patch_dir = '/home/zhenxt/zal/GTSRB/quickdraw/validation_aircraft_carrier_r_10_resized_ext.p'
-	self.patch_all_num = 100
-	self.image_all_num = 100
-	self.patch_val_num = 10
-	self.image_val_num = 10
+        self.image_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/train_1_100.p'
+        self.test_img_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/train_0_9_100.p'
+        self.valid_img_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/validation_img_1_10.p'
+        self.patch_dir = '/media/dsgDisk/dsgPrivate/liuaishan/QuickDraw/aircraft_carrier_r_100_resized.p'
+        self.test_patch_dir = '/media/dsgDisk/dsgPrivate/liuaishan/QuickDraw/aircraft_carrier_r_100_resized.p'
+        self.valid_patch_dir = '/media/dsgDisk/dsgPrivate/liuaishan/QuickDraw/validation_aircraft_carrier_r_10_resized_ext.p'
+        self.patch_all_num = 100
+        self.image_all_num = 100
+        self.patch_val_num = 10
+        self.image_val_num = 10
         self.base_image_num = base_image_num
         self.base_patch_num = base_patch_num
         self.acc_history = []
@@ -90,7 +90,7 @@ class AdvPGAN(object):
 
         self.build_model()
 
-  # Generator of cGAN for adversarial patch
+    # Generator of cGAN for adversarial patch
     # architecture of G is like image style transfer
     # input: patch image with size n*n
     # output: adversarial patch image with size n*n
@@ -248,8 +248,8 @@ class AdvPGAN(object):
         self.fake_logits_d, self.fake_prob_d = self.naive_discriminator(self.fake_image)
         # real image result from naive D
         self.real_logits_d, self.real_prob_d = self.naive_discriminator(self.real_image, reuse=True)
-	
-	# targeted attack
+
+        # targeted attack
         self.target = 40
         self.target_hat = tf.one_hot(self.target, self.class_num)
         self.target_hat_batch = tf.expand_dims(self.target_hat, 0)
@@ -273,8 +273,8 @@ class AdvPGAN(object):
 
         # 3.adversarial example loss
         self.ae_loss = -tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.fake_logits_f, labels=self.y))#+ self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
-	
-	# 4.similarity loss between patch and padded place on traffic sign
+
+        # 4.similarity loss between patch and padded place on traffic sign
         self.pad_sim_loss = self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
 
         #self.ae_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.fake_logits_f, labels=self.target_hat_batch))+ self.rho * tf.nn.l2_loss(self.real_image - self.fake_image)
@@ -302,7 +302,7 @@ class AdvPGAN(object):
         self.real_label = tf.argmax(self.y, 1)
         self.accuracy = tf.reduce_mean((tf.cast(tf.equal(self.predictions, self.real_label), tf.float32)))
 
-	# get all trainable variables for G and D, respectively
+        # get all trainable variables for G and D, respectively
         t_vars = tf.trainable_variables()
         self.d_vars = [var for var in t_vars if 'adv_d_' in var.name]
         self.g_vars = [var for var in t_vars if 'adv_g_' in var.name]
@@ -328,15 +328,15 @@ class AdvPGAN(object):
 
     # train cGAN model
     def train_op(self):
-	global_step = tf.Variable(0, trainable=False)
-	learning_rate = tf.train.exponential_decay(self.learning_rate, global_step = global_step, decay_steps = 5000, decay_rate=0.95)
+        global_step = tf.Variable(0, trainable=False)
+        learning_rate = tf.train.exponential_decay(self.learning_rate, global_step = global_step, decay_steps = 5000, decay_rate=0.95)
         # liuas 2018.5.9 trick: using Adam for G, SGD for D
         d_opt = tf.train.GradientDescentOptimizer(learning_rate= learning_rate). \
             minimize(self.d_loss, var_list=self.d_vars)
         g_opt_ori = tf.train.AdamOptimizer(learning_rate= self.learning_rate)
 
-	add_gloabl = global_step.assign_add(1)
-	with tf.control_dependencies([add_gloabl]):
+        add_gloabl = global_step.assign_add(1)
+        with tf.control_dependencies([add_gloabl]):
             g_opt = g_opt_ori.minimize(self.g_loss, var_list=self.g_vars)
 
         # liuas 2018.5.16 separate minimize() into 3 steps to monitor the gradient
@@ -387,13 +387,13 @@ class AdvPGAN(object):
         # liuaishan get validation set and train set
         #val_data_x, val_data_y, val_data_z = shuffle_augment_and_load(self.base_image_num, self.valid_img_dir, self.base_patch_num, self.valid_patch_dir, self.batch_size)
         self.train_pair_set = get_initial_image_patch_pair(self.image_all_num, self.patch_all_num)
-	valid_pair_set = get_initial_image_patch_pair(self.image_val_num, self.patch_val_num, True)
-	
+        valid_pair_set = get_initial_image_patch_pair(self.image_val_num, self.patch_val_num, True)
+
         val_data_x, val_data_y, val_data_z = load_data_in_pair(valid_pair_set, self.batch_size, self.valid_img_dir,self.valid_patch_dir, self.class_num)
         val_data_x = np.array(val_data_x).astype(np.float32)
         val_data_y = np.array(val_data_y).astype(np.float32)
         val_data_z = np.array(val_data_z).astype(np.float32)
-	print(self.sess.run(learning_rate))
+        print(self.sess.run(learning_rate))
 
         for epoch in range(self.epoch):
             batch_iteration = self.image_all_num * self.patch_all_num / self.batch_size
@@ -404,7 +404,7 @@ class AdvPGAN(object):
                 #    shuffle_augment_and_load(self.base_image_num, self.image_dir, self.base_patch_num,
                 #                             self.patch_dir, self.batch_size )
 
-		batch_data_x, batch_data_y, batch_data_z  = load_data_in_pair(self.train_pair_set, self.batch_size, self.image_dir,self.patch_dir, self.class_num)
+                batch_data_x, batch_data_y, batch_data_z  = load_data_in_pair(self.train_pair_set, self.batch_size, self.image_dir,self.patch_dir, self.class_num)
                 batch_data_x = np.array(batch_data_x).astype(np.float32)
                 batch_data_y = np.array(batch_data_y).astype(np.float32)
                 batch_data_z = np.array(batch_data_z).astype(np.float32)
@@ -427,23 +427,23 @@ class AdvPGAN(object):
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))
                     print("[Validation].......")
 
-                    print("learning_rate: %.8f" % self.sess.run(learning_rate)
-			  
+                    print("learning_rate: %.8f" % self.sess.run(learning_rate))
+
                     # test! Show logits and probs when validating
                     print("[top 3 fake_logits].......")
                     current_fake_logits = self.fake_logits_f.eval({self.real_image: val_data_x, self.real_patch: val_data_z})
                     for i in range(len(current_fake_logits)):
-			top1 = np.argsort(current_fake_logits[i])[-1]
-			top2 = np.argsort(current_fake_logits[i])[-2]
-			top3 = np.argsort(current_fake_logits[i])[-3]
+                        top1 = np.argsort(current_fake_logits[i])[-1]
+                        top2 = np.argsort(current_fake_logits[i])[-2]
+                        top3 = np.argsort(current_fake_logits[i])[-3]
                         print("%d %.8f %d %.8f %d %.8f" %(top1, current_fake_logits[i][top1], top2, current_fake_logits[i][top2], top3, current_fake_logits[i][top3]))
                     #print(current_fake_logits)
                     print("[top 3 fake_prob].......")
                     current_fake_prob = self.fake_prob_f.eval({self.real_image: val_data_x, self.real_patch: val_data_z})
                     for i in range(len(current_fake_prob)):
-			top1 = np.argsort(current_fake_prob[i])[-1]
-			top2 = np.argsort(current_fake_prob[i])[-2]
-			top3 = np.argsort(current_fake_prob[i])[-3]
+                        top1 = np.argsort(current_fake_prob[i])[-1]
+                        top2 = np.argsort(current_fake_prob[i])[-2]
+                        top3 = np.argsort(current_fake_prob[i])[-3]
                         print("%d %.8f %d %.8f %d %.8f" %(top1, current_fake_prob[i][top1], top2, current_fake_prob[i][top2], top3, current_fake_prob[i][top3]))
 
                     errAE = self.ae_loss.eval({self.real_image: val_data_x,
@@ -484,7 +484,7 @@ class AdvPGAN(object):
                         print("Saving model.")
                         self.save(self.checkpoint_dir, counter)
                     print("current acc: %.4f, best acc: %.4f" % (acc, self.best_acc))
-		
+
                 # liuas 2018.5.10 test
                 if np.mod(counter, 1000) == 0:
                     print("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (epoch, id, batch_iteration, time.time() - start_time))

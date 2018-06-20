@@ -38,6 +38,9 @@ def OHE_labels(Y_tr, N_classes):
 
 
 def pre_process_image(image):
+    image[:,:,0] = cv2.equalizeHist(image[:,:,0])
+    image[:,:,1] = cv2.equalizeHist(image[:,:,1])
+    image[:,:,2] = cv2.equalizeHist(image[:,:,2])
     return image/255.
 
 
@@ -95,7 +98,7 @@ def VGG16_train(train_data_dir, test_data_dir, weigths_dir, N_classes, epochs, b
     print("Training images loaded.")
     # fit the model
     start_training = timer()
-    early_stopping = EarlyStopping(monitor='val_loss', patience=2)
+    early_stopping = EarlyStopping(monitor='val_loss', patience=5)
     model.fit(train, train_labels, epochs=epochs, batch_size=batch_size, validation_split=0.1, callbacks=[early_stopping])
     end_training = timer()
     print("Model fitted.")
@@ -152,7 +155,7 @@ if __name__ == "__main__":
     valid_data_dir = '/home/zhenxt/zal/GTSRB/data/validation_img_1_8.p'
     weights_dir = '/home/zhenxt/zal/GTSRB/vgg16/'
     N_classes = 43
-    batch_size = 16
+    batch_size = 64
     epochs = 10000
     weights_dir = weights_dir + 'vgg16_training' + str(epochs) + '.h5'
 

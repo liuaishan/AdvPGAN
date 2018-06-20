@@ -32,9 +32,9 @@ def pre_process_image(image):
     # error occurs when cifar-10 is te
     # solve in 2018.5.11 ZhangAnlan
     # the data type of image that used in equalizeHist must be uint8
-    #image[:,:,0] = cv2.equalizeHist(image[:,:,0])
-    #image[:,:,1] = cv2.equalizeHist(image[:,:,1])
-    #image[:,:,2] = cv2.equalizeHist(image[:,:,2])
+    image[:,:,0] = cv2.equalizeHist(image[:,:,0])
+    image[:,:,1] = cv2.equalizeHist(image[:,:,1])
+    image[:,:,2] = cv2.equalizeHist(image[:,:,2])
     # image = image/255. - .5
     image = image/255.
     #image = image / 127.5 - 1

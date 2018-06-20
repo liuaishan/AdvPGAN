@@ -2,7 +2,10 @@
 classifier for GTSRB dataset
 '''
 import tensorflow as tf
-from utils import load_image
+from utils import pre_process_image
+from utils import OHE_labels
+import numpy as np
+import pickle
 
 # parameters
 img_size = 128
@@ -193,28 +196,33 @@ label_test: one hot code, shape (1, 43)
 y_test: label id, shape (1,)
 keep_prob_test: default = 1.0
 '''
-def GTSRB_Classifier(path, image_GS_test, load_already=False):
-    fc_layer3, labels_pred, _ = GTSRB_Model(features=image_GS_test, keep_prob=1.0)
-    if not load_already:
-        restore_vars = [var for var in tf.global_variables() if var.name.startswith('GTSRB')]
-        saver = tf.train.Saver(restore_vars)
-        # restore the model
-        with tf.Session() as sess1:
-            saver.restore(sess=sess1, save_path=path)
-            #feed_dict_test = {features: image_GS_test,keep_prob:1.0}
-            '''comment by Zhanganlan
-            logits = fc_layer3.eval({features:image_GS_test,keep_prob:1.0 })
-            probs = labels_pred.eval({features:image_GS_test,keep_prob:1.0 })
-            return logits, probs
-            '''
-            return fc_layer3, labels_pred
-    else:
-        return fc_layer3, labels_pred
-
+def GTSRB_Classifier(path, image_GS_test, labels_test):
+    features = tf.placeholder(tf.float32, shape=[None, img_size, img_size, num_channels], name='features')
+    labels_true = tf.placeholder(tf.float32,shape=[None,N_classes], name='y_true')
+    labels_true_cls = tf.argmax(labels_true, dimension=1)
+    fc_layer3, labels_pred, labels_pred_cls = GTSRB_Model(features=features, keep_prob=1.0)
+    correct_prediction = tf.equal(labels_pred_cls, labels_true_cls)
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    totalacc = 0.0
+    with tf.Session() as sess:
+      saver = tf.train.Saver()
+      saver.restore(sess=sess, save_path=path)
+      for i in range(0, 100):
+        if(i == 99):
+          feed_dict_test = {features: image_GS_test[i*126:-1], labels_true: labels_test[i*126:-1], keep_prob:1.0}
+        else:
+          feed_dict_test = {features: image_GS_test[i*126:(i+1)*126], labels_true: labels_test[i*126:(i+1)*126], keep_prob:1.0}
+        acc = sess.run(accuracy,feed_dict=feed_dict_test)
+        print(acc)
+        totalacc = totalacc + acc
+      print("Accuracy on test set: {0:>6.1%}".format(totalacc/100))
 
 if __name__ == "__main__":
-    image, label = load_image(4, "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\train.p", 43)
-    a,b =GTSRB_Classifier(1, "C:\\Users\\SEELE\\Desktop\\AdvGAN\\AdvPGAN\\data\\GTSRB\\model_best_test", image)
-    print(a)
-    print(b)
+  test_data_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/data/test.p'
+  weights_dir = '/media/dsgDisk/dsgPrivate/liuaishan/GTSRB/model/test/GTSRB_best_test'
+  with open(test_data_dir, 'rb') as f:
+    dataset = pickle.load(f)
+  image_GS_test = np.asarray([pre_process_image(item) for item in dataset['data']]).astype(np.float32)
+  labels_test = OHE_labels(dataset['labels'], N_classes).astype(np.float32)
+  GTSRB_Classifier(weights_dir, image_GS_test, labels_test)
 

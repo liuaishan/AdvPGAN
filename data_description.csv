@@ -1,0 +1,24 @@
+﻿文件名,描述,图片尺寸,图片数量
+train.p,GTSRB的训练图片,128*128*3,39209
+test.p,GTSRB的测试图片,128*128*3,12630
+high_resolution_img.p,GTSRB的训练图片中的所有高清图,128*128*3,1306
+high_resolution_img_0_8.p,GTSRB第0类到第8类的训练图片中的每个场景下最清晰的图片,128*128*3,440
+train_0_8.p,GTSRB第0类到第8类的训练图片,128*128*3,13200
+train_0_8_1000.p,GTSRB第0类到第8类的训练图片中的每个场景下比较清晰的图片,128*128*3,1000
+train_0_9_100.p,GTSRB第0类到第9类的训练图片中比较清晰的图片,128*128*3,100
+train_1_100.p,GTSRB第1类训练图片中每个场景下比较清晰的图片,128*128*3,100
+validation_img_1_10.p,GTSRB第1类训练图片中毕竟清晰的图片作为验证集,128*128*3,10
+validation_img_1_8.p,validation_img_1_10.p中加上原始的patch之后不会让GTSRB_Classifier产生误分的图片,128*128*3,8
+train_8_100.p,GTSRB第8类训练图片中每个场景下比较清晰的图片,128*128*3,100
+validation_img_8_10.p,GTSRB第8类训练图片中毕竟清晰的图片作为验证集,128*128*3,10
+train_1_3_5_8_100.p,GTSRB第1 3 5 8类训练图片中每个场景下比较清晰的25张图片,128*128*3,100
+validation_img_1_3_5_8_10.p,GTSRB第1 3类训练图片各3张 第5 8类训练图片各2张作为验证集,128*128*3,10
+aircraft_carrier_r.p,quickdraw中aircraft_carrier类别的所有图片,28*28*3,116504
+aircraft_carrier_r_1000.p,quickdraw中aircraft_carrier类别的前1000张图片,28*28*3,1000
+aircraft_carrier_r_100.p,quickdraw中aircraft_carrier类别的前100张图片,28*28*3,100
+aircraft_carrier_r_100_resized.p,quickdraw中aircraft_carrier类别的前100张图片,16*16*3,100
+validation_aircraft_carrier_r_10_resized_ext.p,quickdraw中aircraft_carrier类别的第101到110张图片,16*16*3,10
+axe_r_100_resized.p,quickdraw中axe类别的前100张图片,16*16*3,100
+validation_axe_r_10_resized_ext.p,quickdraw中axe类别的第101到110张图片,16*16*3,10
+quickdraw_4_100_resized.p,quickdraw中aircraft_carrier axe backpack basket四类各25张,16*16*3,100
+validation_quickdraw_4_10_resized_ext.p,quickdraw中aircraft_carrier axe各3张 backpack basket各2张,16*16*3,10
